@@ -8,7 +8,12 @@
       "Bash(uv run:*)",
       "Bash(timeout:*)",
       "WebFetch(domain:basedosdados.org)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(uv list:*)",
+      "Bash(uv pip:*)",
+      "Bash(echo $PATH)",
+      "Bash(/opt/homebrew/bin/uv run python --version)",
+      "Bash(/opt/homebrew/bin/uv run:*)"
     ],
     "deny": []
   }

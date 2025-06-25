@@ -133,6 +133,165 @@ def clean_graphql_id(graphql_id: Optional[str]) -> str:
         return graphql_id.split(':', 1)[1]
     return graphql_id
 
+def normalize_portuguese_accents(text: str) -> str:
+    """
+    Normalize Portuguese text by adding common accents that users often omit.
+    
+    This function handles the most common Portuguese accent patterns where users
+    type without accents but the database content contains accented characters.
+    
+    Args:
+        text: Input text that may be missing Portuguese accents
+        
+    Returns:
+        Text with common Portuguese accents added where appropriate
+        
+    Examples:
+        "populacao" -> "população"
+        "educacao" -> "educação" 
+        "saude" -> "saúde"
+        "inflacao" -> "inflação"
+        "violencia" -> "violência"
+    """
+    if not text:
+        return text
+    
+    # Common Portuguese accent patterns (most frequent cases)
+    accent_patterns = {
+        # ação/são pattern endings
+        'cao': 'ção',
+        'sao': 'são',
+        'nao': 'não',
+        
+        # Common word-specific patterns
+        'populacao': 'população',
+        'educacao': 'educação', 
+        'saude': 'saúde',
+        'inflacao': 'inflação',
+        'violencia': 'violência',
+        'ciencia': 'ciência',
+        'experiencia': 'experiência',
+        'situacao': 'situação',
+        'informacao': 'informação',
+        'comunicacao': 'comunicação',
+        'administracao': 'administração',
+        'organizacao': 'organização',
+        'producao': 'produção',
+        'construcao': 'construção',
+        'operacao': 'operação',
+        'participacao': 'participação',
+        'avaliacao': 'avaliação',
+        'aplicacao': 'aplicação',
+        'investigacao': 'investigação',
+        'observacao': 'observação',
+        'conservacao': 'conservação',
+        'preservacao': 'preservação',
+        'transformacao': 'transformação',
+        'democratica': 'democrática',
+        'economica': 'econômica',
+        'publica': 'pública',
+        'politica': 'política',
+        'historica': 'histórica',
+        'geografica': 'geográfica',
+        'demografica': 'demográfica',
+        'academica': 'acadêmica',
+        'medica': 'médica',
+        'tecnica': 'técnica',
+        'biologica': 'biológica',
+        'matematica': 'matemática',
+        
+        # Other common words
+        'familia': 'família',
+        'historia': 'história',
+        'memoria': 'memória',
+        'secretaria': 'secretária',
+        'area': 'área',
+        'energia': 'energia',
+        'materia': 'matéria',
+        'territorio': 'território',
+        'relatorio': 'relatório',
+        'laboratorio': 'laboratório',
+        'diretorio': 'diretório',
+        'repositorio': 'repositório',
+        'brasilia': 'brasília',
+        'agua': 'água',
+        'orgao': 'órgão',
+        'orgaos': 'órgãos',
+        'opcao': 'opção',
+        'opcoes': 'opções',
+        'acao': 'ação',
+        'acoes': 'ações',
+        'regiao': 'região',
+        'regioes': 'regiões',
+        'estado': 'estado',  # This one typically doesn't need accents
+        'municipio': 'município',
+        'municipios': 'municípios',
+    }
+    
+    # Create normalized version by applying pattern substitutions
+    normalized = text.lower()
+    
+    # Apply word-level substitutions (exact matches)
+    for unaccented, accented in accent_patterns.items():
+        if normalized == unaccented:
+            return accented
+    
+    # Apply pattern-based substitutions for partial matches
+    for unaccented, accented in accent_patterns.items():
+        if unaccented in normalized:
+            normalized = normalized.replace(unaccented, accented)
+    
+    return normalized
+
+def preprocess_search_query(query: str) -> tuple[str, list[str]]:
+    """
+    Preprocess search queries to handle complex cases and improve search success.
+    
+    This function cleans and normalizes search queries, handling:
+    - Special characters that may cause GraphQL issues
+    - Multi-word phrase processing
+    - Portuguese accent normalization
+    - Query sanitization
+    
+    Args:
+        query: Raw search query from user
+        
+    Returns:
+        tuple of (processed_main_query, fallback_keywords)
+        - processed_main_query: Cleaned query for primary search
+        - fallback_keywords: Individual keywords for fallback searches
+    """
+    if not query or not query.strip():
+        return "", []
+    
+    # Clean and normalize the query
+    clean_query = query.strip()
+    
+    # Remove problematic characters for GraphQL
+    # Keep Portuguese characters, letters, numbers, spaces, and common punctuation
+    import re
+    clean_query = re.sub(r'[^\w\sáàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ\-]', ' ', clean_query)
+    
+    # Normalize multiple spaces to single space
+    clean_query = re.sub(r'\s+', ' ', clean_query).strip()
+    
+    # Apply Portuguese accent normalization
+    normalized_query = normalize_portuguese_accents(clean_query)
+    
+    # Create fallback keywords by splitting the query
+    # Remove common stop words that don't add search value
+    stop_words = {'de', 'da', 'do', 'das', 'dos', 'e', 'em', 'na', 'no', 'nas', 'nos', 
+                  'para', 'por', 'com', 'sem', 'sobre', 'entre', 'the', 'and', 'or', 'of', 'in', 'to'}
+    
+    # Split into individual words and filter
+    words = [word.strip() for word in normalized_query.split() if len(word.strip()) > 2]
+    fallback_keywords = [word for word in words if word.lower() not in stop_words]
+    
+    # Limit fallback keywords to most relevant (first 3-4 words)
+    fallback_keywords = fallback_keywords[:4]
+    
+    return normalized_query, fallback_keywords
+
 # =============================================================================
 # GraphQL API Client
 # =============================================================================
@@ -518,39 +677,90 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
         """
         
         try:
-            # Simplified approach: Try the most effective search first
-            # Handle common accent cases for Portuguese
-            search_term = query
-            if query.lower() == "populacao":
-                search_term = "população"  # Use accented version which works better
-            
-            variables = {"first": limit, "query": search_term}
-            
-            # Primary search: descriptions (most comprehensive)
-            result = await make_graphql_request(graphql_query_desc, variables)
+            # Enhanced search with preprocessing and fallback strategies
+            processed_query, fallback_keywords = preprocess_search_query(query)
             
             all_datasets = []
             seen_ids = set()
+            search_attempts = []
             
-            # Collect description search results
-            if result.get("data", {}).get("allDataset", {}).get("edges"):
-                for edge in result["data"]["allDataset"]["edges"]:
-                    node = edge["node"]
-                    seen_ids.add(node["id"])
-                    all_datasets.append(edge)
+            # Strategy 1: Primary search with processed query (description)
+            if processed_query:
+                try:
+                    variables = {"first": limit, "query": processed_query}
+                    result = await make_graphql_request(graphql_query_desc, variables)
+                    
+                    if result.get("data", {}).get("allDataset", {}).get("edges"):
+                        for edge in result["data"]["allDataset"]["edges"]:
+                            node = edge["node"]
+                            if node["id"] not in seen_ids:
+                                seen_ids.add(node["id"])
+                                all_datasets.append(edge)
+                        search_attempts.append(f"Description search: {len(all_datasets)} results")
+                except Exception as e:
+                    search_attempts.append(f"Description search failed: {str(e)}")
             
-            # If we need more results and haven't hit the limit, try name search
-            if len(all_datasets) < limit:
-                name_result = await make_graphql_request(graphql_query_name, variables)
-                
-                if name_result.get("data", {}).get("allDataset", {}).get("edges"):
-                    for edge in name_result["data"]["allDataset"]["edges"]:
-                        node = edge["node"]
-                        if node["id"] not in seen_ids:
-                            seen_ids.add(node["id"])
-                            all_datasets.append(edge)
-                            if len(all_datasets) >= limit:
-                                break
+            # Strategy 2: Name search with processed query (if we need more results)
+            if len(all_datasets) < limit and processed_query:
+                try:
+                    variables = {"first": limit - len(all_datasets), "query": processed_query}
+                    name_result = await make_graphql_request(graphql_query_name, variables)
+                    
+                    if name_result.get("data", {}).get("allDataset", {}).get("edges"):
+                        for edge in name_result["data"]["allDataset"]["edges"]:
+                            node = edge["node"]
+                            if node["id"] not in seen_ids:
+                                seen_ids.add(node["id"])
+                                all_datasets.append(edge)
+                                if len(all_datasets) >= limit:
+                                    break
+                        search_attempts.append(f"Name search: +{len(all_datasets) - len([d for d in all_datasets if 'description' in str(d)])}")
+                except Exception as e:
+                    search_attempts.append(f"Name search failed: {str(e)}")
+            
+            # Strategy 3: Fallback keyword searches (if main search failed or returned few results)
+            if len(all_datasets) < max(5, limit // 4) and fallback_keywords:
+                for keyword in fallback_keywords[:2]:  # Try top 2 keywords only to avoid timeout
+                    if len(all_datasets) >= limit:
+                        break
+                    
+                    try:
+                        variables = {"first": min(10, limit - len(all_datasets)), "query": keyword}
+                        keyword_result = await make_graphql_request(graphql_query_desc, variables)
+                        
+                        if keyword_result.get("data", {}).get("allDataset", {}).get("edges"):
+                            initial_count = len(all_datasets)
+                            for edge in keyword_result["data"]["allDataset"]["edges"]:
+                                node = edge["node"]
+                                if node["id"] not in seen_ids:
+                                    seen_ids.add(node["id"])
+                                    all_datasets.append(edge)
+                                    if len(all_datasets) >= limit:
+                                        break
+                            if len(all_datasets) > initial_count:
+                                search_attempts.append(f"Keyword '{keyword}': +{len(all_datasets) - initial_count}")
+                    except Exception as e:
+                        search_attempts.append(f"Keyword '{keyword}' failed: {str(e)}")
+            
+            # Strategy 4: If original query was different from processed, try original as fallback
+            if len(all_datasets) < max(3, limit // 5) and query != processed_query and query.strip():
+                try:
+                    variables = {"first": min(10, limit - len(all_datasets)), "query": query.strip()}
+                    original_result = await make_graphql_request(graphql_query_desc, variables)
+                    
+                    if original_result.get("data", {}).get("allDataset", {}).get("edges"):
+                        initial_count = len(all_datasets)
+                        for edge in original_result["data"]["allDataset"]["edges"]:
+                            node = edge["node"]
+                            if node["id"] not in seen_ids:
+                                seen_ids.add(node["id"])
+                                all_datasets.append(edge)
+                                if len(all_datasets) >= limit:
+                                    break
+                        if len(all_datasets) > initial_count:
+                            search_attempts.append(f"Original query fallback: +{len(all_datasets) - initial_count}")
+                except Exception as e:
+                    search_attempts.append(f"Original query fallback failed: {str(e)}")
             
             # Process all collected datasets
             datasets = []
@@ -582,9 +792,16 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                             "tags": tag_names,
                         })
             
+            # Build response with debug information for troubleshooting
+            debug_info = f"\n\n**Search Debug:** {'; '.join(search_attempts)}" if search_attempts else ""
+            if processed_query != query:
+                debug_info += f"\n**Query Processing:** '{query}' → '{processed_query}'"
+            if fallback_keywords:
+                debug_info += f"\n**Fallback Keywords:** {', '.join(fallback_keywords)}"
+            
             return [TextContent(
                 type="text",
-                text=f"Found {len(datasets)} datasets:\n\n" + 
+                text=f"Found {len(datasets)} datasets:{debug_info}\n\n" + 
                      "\n\n".join([
                          f"**{ds['name']}** (ID: {ds['id']}, Slug: {ds['slug']})\n"
                          f"Description: {ds['description']}\n"
