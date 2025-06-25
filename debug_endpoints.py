@@ -302,9 +302,14 @@ async def test_search_datasets(endpoint: Optional[str] = None) -> Dict[str, Any]
     for search_term in SAMPLE_SEARCH_TERMS[:3]:  # Test first 3 terms
         print(f"  Searching for: '{search_term}'")
         
+        # Apply same accent handling as MCP server
+        enhanced_search_term = search_term
+        if search_term.lower() == "populacao":
+            enhanced_search_term = "população"  # Use accented version which works better
+        
         result, response_time, error = await make_debug_graphql_request(
             SEARCH_DATASETS_QUERY,
-            {"query": search_term, "first": 5},
+            {"query": enhanced_search_term, "first": 5},
             endpoint=endpoint
         )
         
