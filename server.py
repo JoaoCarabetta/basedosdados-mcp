@@ -107,6 +107,27 @@ server = Server("basedosdados-mcp")
 
 
 # =============================================================================
+# Utility Functions
+# =============================================================================
+
+def clean_graphql_id(graphql_id: str) -> str:
+    """
+    Clean GraphQL node IDs to extract pure UUIDs.
+    
+    The API returns IDs like 'DatasetNode:uuid', 'TableNode:uuid', 'ColumnNode:uuid'
+    but expects pure UUIDs for queries.
+    
+    Args:
+        graphql_id: GraphQL node ID (e.g., 'DatasetNode:d30222ad-7a5c-4778-a1ec-f0785371d1ca')
+        
+    Returns:
+        Pure UUID string (e.g., 'd30222ad-7a5c-4778-a1ec-f0785371d1ca')
+    """
+    if ':' in graphql_id:
+        return graphql_id.split(':', 1)[1]
+    return graphql_id
+
+# =============================================================================
 # GraphQL API Client
 # =============================================================================
 
@@ -504,43 +525,47 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
             return [TextContent(type="text", text=f"Error searching datasets: {str(e)}")]
     
     elif name == "get_dataset_info":
-        dataset_id = arguments.get("dataset_id")
+        dataset_id = clean_graphql_id(arguments.get("dataset_id"))
         
         graphql_query = """
         query GetDataset($id: ID!) {
-            dataset(id: $id) {
-                id
-                name
-                slug
-                description
-                organizations {
-                    edges {
-                        node {
-                            name
+            allDataset(id: $id, first: 1) {
+                edges {
+                    node {
+                        id
+                        name
+                        slug
+                        description
+                        organizations {
+                            edges {
+                                node {
+                                    name
+                                }
+                            }
                         }
-                    }
-                }
-                themes {
-                    edges {
-                        node {
-                            name
+                        themes {
+                            edges {
+                                node {
+                                    name
+                                }
+                            }
                         }
-                    }
-                }
-                tags {
-                    edges {
-                        node {
-                            name
+                        tags {
+                            edges {
+                                node {
+                                    name
+                                }
+                            }
                         }
-                    }
-                }
-                tables {
-                    edges {
-                        node {
-                            id
-                            name
-                            slug
-                            description
+                        tables {
+                            edges {
+                                node {
+                                    id
+                                    name
+                                    slug
+                                    description
+                                }
+                            }
                         }
                     }
                 }
@@ -551,9 +576,11 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
         try:
             result = await make_graphql_request(graphql_query, {"id": dataset_id})
             
-            if result.get("data", {}).get("dataset"):
-                dataset = result["data"]["dataset"]
-                org_names = [org["node"]["name"] for org in dataset.get("organizations", {}).get("edges", [])]
+            if result.get("data", {}).get("allDataset", {}).get("edges"):
+                edges = result["data"]["allDataset"]["edges"]
+                if edges:
+                    dataset = edges[0]["node"]
+                    org_names = [org["node"]["name"] for org in dataset.get("organizations", {}).get("edges", [])]
                 
                 info = f"""**Dataset Information**
 Name: {dataset['name']}
@@ -566,11 +593,13 @@ Tags: {', '.join([t['node']['name'] for t in dataset.get('tags', {}).get('edges'
 
 **Tables in this dataset:**
 """
-                for edge in dataset.get("tables", {}).get("edges", []):
-                    table = edge["node"]
-                    info += f"- {table['name']} (ID: {table['id']}, Slug: {table.get('slug', '')}): {table.get('description', 'No description')}\n"
-                
-                return [TextContent(type="text", text=info)]
+                    for edge in dataset.get("tables", {}).get("edges", []):
+                        table = edge["node"]
+                        info += f"- {table['name']} (ID: {table['id']}, Slug: {table.get('slug', '')}): {table.get('description', 'No description')}\n"
+                    
+                    return [TextContent(type="text", text=info)]
+                else:
+                    return [TextContent(type="text", text="Dataset not found")]
             else:
                 return [TextContent(type="text", text="Dataset not found")]
                 
@@ -578,20 +607,24 @@ Tags: {', '.join([t['node']['name'] for t in dataset.get('tags', {}).get('edges'
             return [TextContent(type="text", text=f"Error getting dataset info: {str(e)}")]
     
     elif name == "list_tables":
-        dataset_id = arguments.get("dataset_id")
+        dataset_id = clean_graphql_id(arguments.get("dataset_id"))
         
         graphql_query = """
         query GetDatasetTables($id: ID!) {
-            dataset(id: $id) {
-                id
-                name
-                tables {
-                    edges {
-                        node {
-                            id
-                            name
-                            slug
-                            description
+            allDataset(id: $id, first: 1) {
+                edges {
+                    node {
+                        id
+                        name
+                        tables {
+                            edges {
+                                node {
+                                    id
+                                    name
+                                    slug
+                                    description
+                                }
+                            }
                         }
                     }
                 }
@@ -602,28 +635,32 @@ Tags: {', '.join([t['node']['name'] for t in dataset.get('tags', {}).get('edges'
         try:
             result = await make_graphql_request(graphql_query, {"id": dataset_id})
             
-            if result.get("data", {}).get("dataset"):
-                dataset = result["data"]["dataset"]
-                tables = []
-                
-                for edge in dataset.get("tables", {}).get("edges", []):
-                    table = edge["node"]
-                    tables.append({
-                        "id": table["id"],
-                        "name": table["name"],
-                        "slug": table.get("slug", ""),
-                        "description": table.get("description", "No description available")
-                    })
-                
-                return [TextContent(
-                    type="text",
-                    text=f"**Tables in dataset '{dataset['name']}':**\n\n" +
-                         "\n".join([
-                             f"• **{table['name']}** (ID: {table['id']}, Slug: {table['slug']})\n"
-                             f"  {table['description']}"
-                             for table in tables
-                         ])
-                )]
+            if result.get("data", {}).get("allDataset", {}).get("edges"):
+                edges = result["data"]["allDataset"]["edges"]
+                if edges:
+                    dataset = edges[0]["node"]
+                    tables = []
+                    
+                    for edge in dataset.get("tables", {}).get("edges", []):
+                        table = edge["node"]
+                        tables.append({
+                            "id": table["id"],
+                            "name": table["name"],
+                            "slug": table.get("slug", ""),
+                            "description": table.get("description", "No description available")
+                        })
+                    
+                    return [TextContent(
+                        type="text",
+                        text=f"**Tables in dataset '{dataset['name']}':**\n\n" +
+                             "\n".join([
+                                 f"• **{table['name']}** (ID: {table['id']}, Slug: {table['slug']})\n"
+                                 f"  {table['description']}"
+                                 for table in tables
+                             ])
+                    )]
+                else:
+                    return [TextContent(type="text", text="Dataset not found")]
             else:
                 return [TextContent(type="text", text="Dataset not found")]
                 
@@ -631,28 +668,32 @@ Tags: {', '.join([t['node']['name'] for t in dataset.get('tags', {}).get('edges'
             return [TextContent(type="text", text=f"Error listing tables: {str(e)}")]
     
     elif name == "get_table_info":
-        table_id = arguments.get("table_id")
+        table_id = clean_graphql_id(arguments.get("table_id"))
         
         graphql_query = """
         query GetTable($id: ID!) {
-            table(id: $id) {
-                id
-                name
-                slug
-                description
-                dataset {
-                    id
-                    name
-                    slug
-                }
-                columns {
-                    edges {
-                        node {
+            allTable(id: $id, first: 1) {
+                edges {
+                    node {
+                        id
+                        name
+                        slug
+                        description
+                        dataset {
                             id
                             name
-                            description
-                            bigqueryType {
-                                name
+                            slug
+                        }
+                        columns {
+                            edges {
+                                node {
+                                    id
+                                    name
+                                    description
+                                    bigqueryType {
+                                        name
+                                    }
+                                }
                             }
                         }
                     }
@@ -664,11 +705,13 @@ Tags: {', '.join([t['node']['name'] for t in dataset.get('tags', {}).get('edges'
         try:
             result = await make_graphql_request(graphql_query, {"id": table_id})
             
-            if result.get("data", {}).get("table"):
-                table = result["data"]["table"]
-                dataset = table["dataset"]
-                
-                info = f"""**Table Information**
+            if result.get("data", {}).get("allTable", {}).get("edges"):
+                edges = result["data"]["allTable"]["edges"]
+                if edges:
+                    table = edges[0]["node"]
+                    dataset = table["dataset"]
+                    
+                    info = f"""**Table Information**
 Name: {table['name']}
 ID: {table['id']}
 Slug: {table.get('slug', '')}
@@ -679,15 +722,17 @@ Description: {table.get('description', 'No description available')}
 
 **Columns:**
 """
-                
-                for edge in table.get("columns", {}).get("edges", []):
-                    column = edge["node"]
-                    bigquery_type = column.get("bigqueryType", {}).get("name", "Unknown")
-                    info += f"• {column['name']} ({bigquery_type})\n"
-                    if column.get("description"):
-                        info += f"  {column['description']}\n"
-                
-                return [TextContent(type="text", text=info)]
+                    
+                    for edge in table.get("columns", {}).get("edges", []):
+                        column = edge["node"]
+                        bigquery_type = column.get("bigqueryType", {}).get("name", "Unknown")
+                        info += f"• {column['name']} ({bigquery_type})\n"
+                        if column.get("description"):
+                            info += f"  {column['description']}\n"
+                    
+                    return [TextContent(type="text", text=info)]
+                else:
+                    return [TextContent(type="text", text="Table not found")]
             else:
                 return [TextContent(type="text", text="Table not found")]
                 
@@ -695,21 +740,25 @@ Description: {table.get('description', 'No description available')}
             return [TextContent(type="text", text=f"Error getting table info: {str(e)}")]
     
     elif name == "list_columns":
-        table_id = arguments.get("table_id")
+        table_id = clean_graphql_id(arguments.get("table_id"))
         
         graphql_query = """
         query GetTableColumns($id: ID!) {
-            table(id: $id) {
-                id
-                name
-                columns {
-                    edges {
-                        node {
-                            id
-                            name
-                            description
-                            bigqueryType {
-                                name
+            allTable(id: $id, first: 1) {
+                edges {
+                    node {
+                        id
+                        name
+                        columns {
+                            edges {
+                                node {
+                                    id
+                                    name
+                                    description
+                                    bigqueryType {
+                                        name
+                                    }
+                                }
                             }
                         }
                     }
@@ -721,29 +770,33 @@ Description: {table.get('description', 'No description available')}
         try:
             result = await make_graphql_request(graphql_query, {"id": table_id})
             
-            if result.get("data", {}).get("table"):
-                table = result["data"]["table"]
-                columns = []
-                
-                for edge in table.get("columns", {}).get("edges", []):
-                    column = edge["node"]
-                    bigquery_type = column.get("bigqueryType", {}).get("name", "Unknown")
-                    columns.append({
-                        "id": column["id"],
-                        "name": column["name"],
-                        "description": column.get("description", "No description available"),
-                        "type": bigquery_type
-                    })
-                
-                return [TextContent(
-                    type="text",
-                    text=f"**Columns in table '{table['name']}':**\n\n" +
-                         "\n".join([
-                             f"• **{col['name']}** ({col['type']}) - ID: {col['id']}\n"
-                             f"  {col['description']}"
-                             for col in columns
-                         ])
-                )]
+            if result.get("data", {}).get("allTable", {}).get("edges"):
+                edges = result["data"]["allTable"]["edges"]
+                if edges:
+                    table = edges[0]["node"]
+                    columns = []
+                    
+                    for edge in table.get("columns", {}).get("edges", []):
+                        column = edge["node"]
+                        bigquery_type = column.get("bigqueryType", {}).get("name", "Unknown")
+                        columns.append({
+                            "id": column["id"],
+                            "name": column["name"],
+                            "description": column.get("description", "No description available"),
+                            "type": bigquery_type
+                        })
+                    
+                    return [TextContent(
+                        type="text",
+                        text=f"**Columns in table '{table['name']}':**\n\n" +
+                             "\n".join([
+                                 f"• **{col['name']}** ({col['type']}) - ID: {col['id']}\n"
+                                 f"  {col['description']}"
+                                 for col in columns
+                             ])
+                    )]
+                else:
+                    return [TextContent(type="text", text="Table not found")]
             else:
                 return [TextContent(type="text", text="Table not found")]
                 
@@ -751,25 +804,29 @@ Description: {table.get('description', 'No description available')}
             return [TextContent(type="text", text=f"Error listing columns: {str(e)}")]
     
     elif name == "get_column_info":
-        column_id = arguments.get("column_id")
+        column_id = clean_graphql_id(arguments.get("column_id"))
         
         graphql_query = """
         query GetColumn($id: ID!) {
-            column(id: $id) {
-                id
-                name
-                description
-                bigqueryType {
-                    name
-                }
-                table {
-                    id
-                    name
-                    slug
-                    dataset {
+            allColumn(id: $id, first: 1) {
+                edges {
+                    node {
                         id
                         name
-                        slug
+                        description
+                        bigqueryType {
+                            name
+                        }
+                        table {
+                            id
+                            name
+                            slug
+                            dataset {
+                                id
+                                name
+                                slug
+                            }
+                        }
                     }
                 }
             }
@@ -779,13 +836,15 @@ Description: {table.get('description', 'No description available')}
         try:
             result = await make_graphql_request(graphql_query, {"id": column_id})
             
-            if result.get("data", {}).get("column"):
-                column = result["data"]["column"]
-                table = column["table"]
-                dataset = table["dataset"]
-                bigquery_type = column.get("bigqueryType", {}).get("name", "Unknown")
-                
-                info = f"""**Column Information**
+            if result.get("data", {}).get("allColumn", {}).get("edges"):
+                edges = result["data"]["allColumn"]["edges"]
+                if edges:
+                    column = edges[0]["node"]
+                    table = column["table"]
+                    dataset = table["dataset"]
+                    bigquery_type = column.get("bigqueryType", {}).get("name", "Unknown")
+                    
+                    info = f"""**Column Information**
 Name: {column['name']}
 ID: {column['id']}
 Type: {bigquery_type}
@@ -797,8 +856,10 @@ Description: {column.get('description', 'No description available')}
 **Dataset:**
 {dataset['name']} (ID: {dataset['id']}, Slug: {dataset.get('slug', '')})
 """
-                
-                return [TextContent(type="text", text=info)]
+                    
+                    return [TextContent(type="text", text=info)]
+                else:
+                    return [TextContent(type="text", text="Column not found")]
             else:
                 return [TextContent(type="text", text="Column not found")]
                 
@@ -806,7 +867,7 @@ Description: {column.get('description', 'No description available')}
             return [TextContent(type="text", text=f"Error getting column info: {str(e)}")]
     
     elif name == "generate_sql_query":
-        table_id = arguments.get("table_id")
+        table_id = clean_graphql_id(arguments.get("table_id"))
         columns = arguments.get("columns", [])
         limit = arguments.get("limit")
         
@@ -816,19 +877,23 @@ Description: {column.get('description', 'No description available')}
             # First get table information
             graphql_query = """
             query GetTable($id: ID!) {
-                table(id: $id) {
-                    id
-                    name
-                    slug
-                    dataset {
-                        slug
-                    }
-                    columns {
-                        edges {
-                            node {
-                                name
-                                bigqueryType {
-                                    name
+                allTable(id: $id, first: 1) {
+                    edges {
+                        node {
+                            id
+                            name
+                            slug
+                            dataset {
+                                slug
+                            }
+                            columns {
+                                edges {
+                                    node {
+                                        name
+                                        bigqueryType {
+                                            name
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -839,27 +904,31 @@ Description: {column.get('description', 'No description available')}
             
             result = await make_graphql_request(graphql_query, {"id": table_id})
             
-            if result.get("data", {}).get("table"):
-                table = result["data"]["table"]
-                dataset_slug = table["dataset"]["slug"]
-                table_slug = table["slug"]
-                
-                # Get column names if not specified
-                if not columns:
-                    columns = [col["node"]["name"] for col in table.get("columns", {}).get("edges", [])]
-                
-                # Generate SQL query
-                columns_str = ", ".join(columns) if columns else "*"
-                sql_query = f"SELECT {columns_str}\nFROM `basedosdados.{dataset_slug}.{table_slug}`"
-                
-                if limit:
-                    sql_query += f"\nLIMIT {limit}"
-                
-                return [TextContent(
-                    type="text", 
-                    text=f"**Generated SQL Query for {table['name']}:**\n\n```sql\n{sql_query}\n```\n\n"
-                         f"**Usage:** You can run this query in BigQuery or use the Base dos Dados Python package."
-                )]
+            if result.get("data", {}).get("allTable", {}).get("edges"):
+                edges = result["data"]["allTable"]["edges"]
+                if edges:
+                    table = edges[0]["node"]
+                    dataset_slug = table["dataset"]["slug"]
+                    table_slug = table["slug"]
+                    
+                    # Get column names if not specified
+                    if not columns:
+                        columns = [col["node"]["name"] for col in table.get("columns", {}).get("edges", [])]
+                    
+                    # Generate SQL query
+                    columns_str = ", ".join(columns) if columns else "*"
+                    sql_query = f"SELECT {columns_str}\nFROM `basedosdados.{dataset_slug}.{table_slug}`"
+                    
+                    if limit:
+                        sql_query += f"\nLIMIT {limit}"
+                    
+                    return [TextContent(
+                        type="text", 
+                        text=f"**Generated SQL Query for {table['name']}:**\n\n```sql\n{sql_query}\n```\n\n"
+                             f"**Usage:** You can run this query in BigQuery or use the Base dos Dados Python package."
+                    )]
+                else:
+                    return [TextContent(type="text", text="Table not found")]
             else:
                 return [TextContent(type="text", text="Table not found")]
                 

@@ -9,12 +9,6 @@ A Model Context Protocol (MCP) server that provides access to Base dos Dados, Br
 - Generate SQL queries for BigQuery access
 - Access metadata and documentation
 
-## Installation
-
-```bash
-uv install -r requirements.txt
-```
-
 ## Usage
 
 ### As MCP Server
@@ -53,16 +47,44 @@ Add to your MCP client configuration:
 ### Setup
 
 ```bash
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv install -r requirements.txt
+uv init
 ```
 
 ### Testing
 
+#### Run MCP Server
 ```bash
-python server.py
+uv run server.py
 ```
+
+#### Debug and Test API Endpoints
+
+Use the comprehensive endpoint testing script (ensure dependencies are installed first):
+
+```bash
+# Install dependencies if not already done
+uv init
+
+# Test default endpoint with full test suite
+uv run debug_endpoints.py
+
+# Test custom endpoint
+uv run debug_endpoints.py --endpoint https://custom-api-url.com/graphql
+
+# Quick connectivity test only
+uv run debug_endpoints.py --quick
+
+# Save detailed results to JSON file
+uv run debug_endpoints.py --output test_results.json
+```
+
+**Debug Features:**
+- ✅ Configurable endpoint URL testing
+- ✅ Comprehensive GraphQL query testing
+- ✅ Detailed error reporting and timing
+- ✅ Progressive testing (searches → datasets → tables → columns)
+- ✅ JSON export of test results
+- ✅ Quick connectivity verification mode
 
 ## About Base dos Dados
 

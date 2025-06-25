@@ -3,7 +3,9 @@
     "allow": [
       "Bash(ls:*)",
       "Bash(grep:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(python:*)",
+      "Bash(uv run:*)"
     ],
     "deny": []
   }
