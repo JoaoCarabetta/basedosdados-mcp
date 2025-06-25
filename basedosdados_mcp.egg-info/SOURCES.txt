@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+server.py
+basedosdados_mcp.egg-info/PKG-INFO
+basedosdados_mcp.egg-info/SOURCES.txt
+basedosdados_mcp.egg-info/dependency_links.txt
+basedosdados_mcp.egg-info/entry_points.txt
+basedosdados_mcp.egg-info/requires.txt
+basedosdados_mcp.egg-info/top_level.txt
