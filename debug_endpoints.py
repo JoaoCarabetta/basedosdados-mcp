@@ -30,7 +30,7 @@ DEFAULT_ENDPOINT = "https://backend.basedosdados.org/graphql"
 ENDPOINT_URL = DEFAULT_ENDPOINT  # This will be configurable
 
 # Test data for comprehensive endpoint testing
-SAMPLE_SEARCH_TERMS = ["população", "IBGE", "covid", "educação", "saúde"]
+SAMPLE_SEARCH_TERMS = ["população", "populacao", "IBGE", "covid", "educação", "saúde"]
 SAMPLE_DATASET_IDS = ['d30222ad-7a5c-4778-a1ec-f0785371d1ca']  # Will be populated from search results
 SAMPLE_TABLE_IDS = ['2440d076-8934-471f-8cbe-51faae387c66']    # Will be populated from dataset queries
 SAMPLE_COLUMN_IDS = []   # Will be populated from table queries
@@ -50,11 +50,11 @@ query TestConnectivity {
 }
 """
 
-# Search datasets query
+# Enhanced search query - now searches descriptions (more comprehensive)
 SEARCH_DATASETS_QUERY = """
 query SearchDatasets($query: String, $first: Int) {
     allDataset(
-        name_Icontains: $query,
+        description_Icontains: $query,
         first: $first
     ) {
         edges {
@@ -64,6 +64,20 @@ query SearchDatasets($query: String, $first: Int) {
                 slug
                 description
                 organizations {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                themes {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tags {
                     edges {
                         node {
                             name

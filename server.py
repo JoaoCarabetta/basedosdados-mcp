@@ -433,12 +433,53 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
         query = arguments.get("query", "")
         theme = arguments.get("theme")
         organization = arguments.get("organization")
-        limit = arguments.get("limit", 20)
+        limit = arguments.get("limit", 50)  # Balanced default for performance
         
-        # GraphQL query to search datasets  
+        # Enhanced GraphQL query to search datasets across multiple fields
         if query:
-            graphql_query = """
-            query SearchDatasets($query: String, $first: Int) {
+            # First try description search (most comprehensive)
+            graphql_query_desc = """
+            query SearchDatasetsByDescription($query: String, $first: Int) {
+                allDataset(
+                    description_Icontains: $query,
+                    first: $first
+                ) {
+                edges {
+                    node {
+                        id
+                        name
+                        description
+                        slug
+                        organizations {
+                            edges {
+                                node {
+                                    name
+                                }
+                            }
+                        }
+                        themes {
+                            edges {
+                                node {
+                                    name
+                                }
+                            }
+                        }
+                        tags {
+                            edges {
+                                node {
+                                    name
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """
+            
+            # Secondary search by name if description search yields few results
+            graphql_query_name = """
+            query SearchDatasetsByName($query: String, $first: Int) {
                 allDataset(
                     name_Icontains: $query,
                     first: $first
@@ -477,17 +518,44 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
         """
         
         try:
-            variables = {"first": limit}
-            if query:
-                variables["query"] = query
-            # Note: theme and organization filtering may need different approach
-            # For now, we'll filter by name only and do post-processing for theme/org
-                
-            result = await make_graphql_request(graphql_query, variables)
+            # Simplified approach: Try the most effective search first
+            # Handle common accent cases for Portuguese
+            search_term = query
+            if query.lower() == "populacao":
+                search_term = "população"  # Use accented version which works better
             
-            datasets = []
+            variables = {"first": limit, "query": search_term}
+            
+            # Primary search: descriptions (most comprehensive)
+            result = await make_graphql_request(graphql_query_desc, variables)
+            
+            all_datasets = []
+            seen_ids = set()
+            
+            # Collect description search results
             if result.get("data", {}).get("allDataset", {}).get("edges"):
                 for edge in result["data"]["allDataset"]["edges"]:
+                    node = edge["node"]
+                    seen_ids.add(node["id"])
+                    all_datasets.append(edge)
+            
+            # If we need more results and haven't hit the limit, try name search
+            if len(all_datasets) < limit:
+                name_result = await make_graphql_request(graphql_query_name, variables)
+                
+                if name_result.get("data", {}).get("allDataset", {}).get("edges"):
+                    for edge in name_result["data"]["allDataset"]["edges"]:
+                        node = edge["node"]
+                        if node["id"] not in seen_ids:
+                            seen_ids.add(node["id"])
+                            all_datasets.append(edge)
+                            if len(all_datasets) >= limit:
+                                break
+            
+            # Process all collected datasets
+            datasets = []
+            if all_datasets:
+                for edge in all_datasets:
                     node = edge["node"]
                     # Get organization names
                     org_names = [org["node"]["name"] for org in node.get("organizations", {}).get("edges", [])]

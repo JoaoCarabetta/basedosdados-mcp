@@ -6,7 +6,8 @@
       "Bash(sed:*)",
       "Bash(python:*)",
       "Bash(uv run:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "WebFetch(domain:basedosdados.org)"
     ],
     "deny": []
   }
