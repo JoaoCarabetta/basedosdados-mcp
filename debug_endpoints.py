@@ -170,7 +170,13 @@ def clean_graphql_id(graphql_id: str) -> str:
         
     Returns:
         Pure UUID string (e.g., 'd30222ad-7a5c-4778-a1ec-f0785371d1ca')
+        
+    Raises:
+        ValueError: If graphql_id is None or empty
     """
+    if not graphql_id:
+        raise ValueError("GraphQL ID cannot be None or empty")
+    
     if ':' in graphql_id:
         return graphql_id.split(':', 1)[1]
     return graphql_id

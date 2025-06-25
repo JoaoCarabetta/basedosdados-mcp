@@ -110,7 +110,7 @@ server = Server("basedosdados-mcp")
 # Utility Functions
 # =============================================================================
 
-def clean_graphql_id(graphql_id: str) -> str:
+def clean_graphql_id(graphql_id: Optional[str]) -> str:
     """
     Clean GraphQL node IDs to extract pure UUIDs.
     
@@ -122,7 +122,13 @@ def clean_graphql_id(graphql_id: str) -> str:
         
     Returns:
         Pure UUID string (e.g., 'd30222ad-7a5c-4778-a1ec-f0785371d1ca')
+        
+    Raises:
+        ValueError: If graphql_id is None or empty
     """
+    if not graphql_id:
+        raise ValueError("GraphQL ID cannot be None or empty")
+    
     if ':' in graphql_id:
         return graphql_id.split(':', 1)[1]
     return graphql_id
@@ -581,8 +587,8 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                 if edges:
                     dataset = edges[0]["node"]
                     org_names = [org["node"]["name"] for org in dataset.get("organizations", {}).get("edges", [])]
-                
-                info = f"""**Dataset Information**
+                    
+                    info = f"""**Dataset Information**
 Name: {dataset['name']}
 ID: {dataset['id']}
 Slug: {dataset.get('slug', '')}
