@@ -23,7 +23,7 @@ This is a **Model Context Protocol (MCP) server** for Base dos Dados, Brazil's o
 - **Enhanced Resources**: Context-aware help and guidance for LLM consumption
 - **Error Handling**: Robust error handling with detailed debugging information
 
-### AI-Optimized Tools (5 enhanced tools)
+### AI-Optimized Tools (4 enhanced tools)
 
 1. **`search_datasets`**: Enhanced search with table/column counts and BigQuery references
    - Portuguese accent normalization (`populacao` → `população`)
@@ -49,11 +49,6 @@ This is a **Model Context Protocol (MCP) server** for Base dos Dados, Brazil's o
    - Related mode: Find similar datasets
    - Context-aware responses based on exploration level
 
-5. **`generate_queries`**: Context-aware SQL generation
-   - Multiple query types (select, aggregate, filter, join, sample)
-   - Optimization suggestions and performance tips
-   - Access methods (BigQuery console, Python, R)
-   - Column-aware query generation with type considerations
 
 ### Resources
 - **basedosdados://help**: AI-optimized help with workflow guidance
@@ -149,14 +144,14 @@ The server connects to Base dos Dados GraphQL API and provides enhanced access t
 - "Search for IBGE datasets in Base dos Dados"
 - "What Brazilian education data is available?"
 - "Get complete overview of dataset [ID] with all tables"
-- "Generate SQL query for RAIS employment data"
+- "Show me table details for RAIS employment data with SQL examples"
 - "Explore Brazilian census data structure"
 
 ### Expected Workflow
 1. **Discover**: Use `search_datasets` with keywords like "população", "RAIS", "educação"
 2. **Explore**: Use `get_dataset_overview` to see complete dataset structure
-3. **Analyze**: Use `get_table_details` for specific table information
-4. **Query**: Use `generate_queries` for ready-to-use SQL
+3. **Analyze**: Use `get_table_details` for specific table information with sample SQL
+4. **Query**: Use the provided BigQuery references and sample SQL from table details
 
 ## Testing and Verification
 
@@ -175,6 +170,14 @@ The server connects to Base dos Dados GraphQL API and provides enhanced access t
 - **Network Issues**: Timeout and connection error handling
 - **Data Not Found**: Clear messages when datasets/tables don't exist
 - **Permission Issues**: BigQuery access troubleshooting guidance
+
+## Recent Changes
+
+### 2025-06-26: Removed `generate_queries` Tool
+- Removed the `generate_queries` tool to simplify the interface
+- SQL generation functionality is now integrated into `get_table_details`
+- Users get sample SQL queries directly in table details responses
+- Maintains all functionality while reducing complexity
 
 ## Notes
 

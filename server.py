@@ -690,7 +690,6 @@ This server provides comprehensive metadata access to Base dos Dados, Brazil's o
 - **get_dataset_overview**: Complete dataset view with all tables, columns, and ready-to-use SQL
 - **get_table_details**: Comprehensive table info with column types, descriptions, and sample queries
 - **explore_data**: Multi-level exploration for quick discovery or detailed analysis
-- **generate_queries**: Context-aware SQL generation with optimization tips
 
 📊 **What is Base dos Dados?**
 Base dos Dados is Brazil's public data platform that standardizes and provides
@@ -701,7 +700,7 @@ access to Brazilian public datasets through Google BigQuery with references like
 1. **Discover**: Use `search_datasets` to find relevant data with structure preview
 2. **Explore**: Use `get_dataset_overview` to see complete dataset structure in one call
 3. **Analyze**: Use `get_table_details` for full column information and sample queries
-4. **Query**: Use `generate_queries` for context-aware SQL with BigQuery references
+4. **Query**: Use the provided BigQuery references and sample SQL from table details
 
 📝 **Key Features:**
 - **Single-call efficiency**: Get comprehensive info without multiple API calls
@@ -809,39 +808,6 @@ async def handle_list_tools() -> List[Tool]:
                     }
                 },
                 "required": [],
-            },
-        ),
-        Tool(
-            name="generate_queries",
-            description="Generate context-aware SQL queries with BigQuery table references and optimization suggestions",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "table_id": {
-                        "type": "string",
-                        "description": "The UUID of the table",
-                    },
-                    "query_type": {
-                        "type": "string",
-                        "enum": ["select", "aggregate", "filter", "join", "sample"],
-                        "description": "Type of SQL query to generate",
-                        "default": "select"
-                    },
-                    "columns": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Specific columns to include (optional)",
-                    },
-                    "filters": {
-                        "type": "object",
-                        "description": "Filter conditions as key-value pairs (optional)",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Row limit for the query (optional)",
-                    },
-                },
-                "required": ["table_id"],
             },
         ),
     ]
@@ -1191,8 +1157,7 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
             if datasets:
                 final_response += f"""\n\n💡 **Next Steps:**
 - Use `get_dataset_overview` with a dataset ID to see all tables and columns
-- Use `get_table_details` with a table ID for complete column information  
-- Use `generate_queries` to create SQL for BigQuery access
+- Use `get_table_details` with a table ID for complete column information and sample SQL
 - Access data using BigQuery references like: `{datasets[0]['sample_bigquery_ref'] if datasets[0]['sample_bigquery_ref'] else 'basedosdados.dataset.table'}`"""
             
             return [TextContent(type="text", text=final_response)]
@@ -1685,8 +1650,7 @@ Description: {column.get('description', 'No description available')}
                     response += f"""
 
 **🔍 Next Steps:**
-- Use `get_table_details` with a table ID to see all columns and types
-- Use `generate_queries` to create SQL for specific tables
+- Use `get_table_details` with a table ID to see all columns and types with sample SQL queries
 - Access data in BigQuery using the table references above (e.g., `SELECT * FROM {tables_info[0]['bigquery_reference'] if tables_info else 'basedosdados.dataset.table'} LIMIT 100`)
 """
                     
@@ -1841,107 +1805,6 @@ WHERE table_name = '{table_slug}'
                 
         except Exception as e:
             return [TextContent(type="text", text=f"Error exploring data: {str(e)}")]
-    
-    elif name == "generate_queries":
-        table_id = clean_graphql_id(arguments.get("table_id"))
-        query_type = arguments.get("query_type", "select")
-        columns = arguments.get("columns", [])
-        filters = arguments.get("filters", {})
-        limit = arguments.get("limit")
-        
-        try:
-            # Get table information for context
-            result = await make_graphql_request(TABLE_DETAILS_QUERY, {"id": table_id})
-            
-            if result.get("data", {}).get("allTable", {}).get("edges"):
-                table = result["data"]["allTable"]["edges"][0]["node"]
-                dataset = table["dataset"]
-                table_columns = table.get("columns", {}).get("edges", [])
-                
-                # Generate BigQuery reference
-                dataset_slug = dataset.get("slug", "")
-                table_slug = table.get("slug", "")
-                bigquery_ref = f"basedosdados.{dataset_slug}.{table_slug}"
-                
-                # Get available columns if not specified
-                if not columns:
-                    columns = [col["node"]["name"] for col in table_columns]
-                
-                # Generate different types of queries
-                queries = []
-                
-                if query_type == "select" or query_type == "sample":
-                    column_list = ", ".join(columns[:10])  # Limit for readability
-                    if len(columns) > 10:
-                        column_list += f" -- and {len(columns) - 10} more columns"
-                    
-                    query = f"SELECT {column_list}\nFROM `{bigquery_ref}`"
-                    if limit:
-                        query += f"\nLIMIT {limit}"
-                    else:
-                        query += "\nLIMIT 100"
-                    queries.append(("Basic Select", query))
-                
-                if query_type == "aggregate":
-                    numeric_cols = [col["node"]["name"] for col in table_columns 
-                                   if col["node"].get("bigqueryType", {}).get("name", "") in ["INTEGER", "FLOAT", "NUMERIC"]]
-                    if numeric_cols:
-                        query = f"""SELECT COUNT(*) as total_rows,
-       AVG({numeric_cols[0]}) as avg_{numeric_cols[0]},
-       MIN({numeric_cols[0]}) as min_{numeric_cols[0]},
-       MAX({numeric_cols[0]}) as max_{numeric_cols[0]}
-FROM `{bigquery_ref}`"""
-                        queries.append(("Aggregation Example", query))
-                
-                if filters:
-                    filter_conditions = []
-                    for col, value in filters.items():
-                        if isinstance(value, str):
-                            filter_conditions.append(f"{col} = '{value}'")
-                        else:
-                            filter_conditions.append(f"{col} = {value}")
-                    
-                    if filter_conditions:
-                        query = f"""SELECT *
-FROM `{bigquery_ref}`
-WHERE {' AND '.join(filter_conditions)}"""
-                        if limit:
-                            query += f"\nLIMIT {limit}"
-                        queries.append(("Filtered Query", query))
-                
-                # Build response
-                response = f"""**🔍 Generated SQL Queries for {table['name']}**
-
-**Table Reference:** `{bigquery_ref}`
-**Available Columns:** {len(table_columns)}
-
-"""
-                for query_name, query_sql in queries:
-                    response += f"""**{query_name}:**
-```sql
-{query_sql}
-```
-
-"""
-                
-                response += f"""**💡 Optimization Tips:**
-- Use `LIMIT` to test queries on large tables
-- Consider partitioning columns for better performance
-- Use `SELECT *` sparingly on tables with many columns
-- Check data freshness and update frequency
-
-**🚀 Access Methods:**
-1. **BigQuery Console:** Copy the SQL above
-2. **Python:** `bd.read_sql(query, billing_project_id='your-project')`
-3. **R:** Use `bigrquery` package with the table reference
-"""
-                
-                return [TextContent(type="text", text=response)]
-            else:
-                return [TextContent(type="text", text="Table not found")]
-                
-        except Exception as e:
-            return [TextContent(type="text", text=f"Error generating queries: {str(e)}")]
     
     else:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]
