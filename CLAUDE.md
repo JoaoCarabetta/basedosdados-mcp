@@ -4,59 +4,180 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Model Context Protocol (MCP) server** for Base dos Dados, Brazil's open data platform. The server provides tools and resources for accessing datasets, tables, columns, and generating SQL queries through the MCP protocol.
+This is a **Model Context Protocol (MCP) server** for Base dos Dados, Brazil's open data platform. The server provides AI-optimized tools and resources for accessing datasets, tables, columns, and generating SQL queries through the MCP protocol.
 
 ## Architecture
 
-- **server.py**: Main MCP server implementation with GraphQL client
-- **requirements.txt**: Python dependencies (mcp, httpx, pydantic)
-- **pyproject.toml**: Project configuration and build settings
+- **server.py**: Main MCP server implementation with enhanced GraphQL client and AI-friendly tools
+- **run_server.sh**: Wrapper script for reliable Claude Desktop integration
+- **pyproject.toml**: Project configuration with all dependencies (mcp, httpx, pydantic, google-cloud-bigquery)
+- **test_*.py**: Comprehensive testing and debugging scripts
 - **README.md**: Project documentation
 
 ## Key Components
 
-### MCP Server (`server.py`)
-- GraphQL client for Base dos Dados API (https://api.basedosdados.org/api/v1/graphql)
-- Tools for dataset search, information retrieval, and SQL generation
-- Resources for help and dataset listing
-- Pydantic models for data validation
+### Enhanced MCP Server (`server.py`)
+- **GraphQL Client**: Connects to Base dos Dados API (https://backend.basedosdados.org/graphql)
+- **AI-Optimized Tools**: Single-call comprehensive data retrieval with BigQuery references
+- **Smart Search**: Portuguese accent normalization, acronym prioritization, intelligent ranking
+- **Enhanced Resources**: Context-aware help and guidance for LLM consumption
+- **Error Handling**: Robust error handling with detailed debugging information
 
-### Available Tools
-- `search_datasets`: Search datasets by name/theme/organization
-- `get_dataset_info`: Get detailed dataset information
-- `list_tables`: List tables in a dataset
-- `get_table_info`: Get detailed table information
-- `list_columns`: List columns in a table
-- `get_column_info`: Get detailed column information  
-- `generate_sql_query`: Generate BigQuery SQL for tables
+### AI-Optimized Tools (5 enhanced tools)
+
+1. **`search_datasets`**: Enhanced search with table/column counts and BigQuery references
+   - Portuguese accent normalization (`populacao` → `população`)
+   - Acronym prioritization (RAIS, IBGE, IPEA get top results)
+   - Comprehensive structure preview with sample BigQuery paths
+   - Intelligent ranking based on relevance scores
+
+2. **`get_dataset_overview`**: Complete dataset view in single call
+   - All tables with column counts and BigQuery references
+   - Ready-to-use SQL paths like `basedosdados.br_ibge_populacao.municipio`
+   - Sample columns for quick structure understanding
+   - Next-step guidance for further exploration
+
+3. **`get_table_details`**: Comprehensive table information
+   - All columns with types, descriptions, and IDs
+   - Multiple sample SQL queries (basic select, schema info, access patterns)
+   - BigQuery reference and Python package instructions
+   - Optimization tips and best practices
+
+4. **`explore_data`**: Multi-level data exploration
+   - Overview mode: Quick summary with top tables
+   - Detailed mode: Complete dataset structure
+   - Related mode: Find similar datasets
+   - Context-aware responses based on exploration level
+
+5. **`generate_queries`**: Context-aware SQL generation
+   - Multiple query types (select, aggregate, filter, join, sample)
+   - Optimization suggestions and performance tips
+   - Access methods (BigQuery console, Python, R)
+   - Column-aware query generation with type considerations
+
+### Resources
+- **basedosdados://help**: AI-optimized help with workflow guidance
+- **basedosdados://datasets**: Dataset discovery guidance
 
 ## Development Commands
 
 ```bash
-# Install dependencies
-uv install -r requirements.txt
+# Install dependencies with BigQuery support
+uv sync
 
-# Run server (for testing)
-python server.py
+# Run server for testing
+uv run server.py
+
+# Test MCP connection and all tools
+uv run test_mcp_fixed.py
+
+# Test BigQuery service account permissions
+uv run test_bigquery_permissions.py
+
+# Test specific tool functionality
+uv run test_claude_tools.py
 
 # Format code
 black server.py
 
 # Lint code  
 ruff server.py
-
-# Test (if tests exist)
-pytest
 ```
+
+## Claude Desktop Integration
+
+### Configuration (`claude_desktop_config.json`)
+```json
+{
+  "mcpServers": {
+    "basedosdados": {
+      "command": "/Users/joaoc/Documents/projects/basedosdados_mcp/run_server.sh"
+    }
+  }
+}
+```
+
+### Wrapper Script (`run_server.sh`)
+- Ensures correct working directory and environment
+- Provides debug logging to stderr for troubleshooting
+- Uses `uv run` for proper virtual environment activation
+- Handles all dependency resolution automatically
+
+### Debugging
+- **Logs**: `~/Library/Logs/Claude/mcp-server-basedosdados.log`
+- **Connection test**: `uv run test_mcp_fixed.py`
+- **BigQuery permissions**: `uv run test_bigquery_permissions.py`
+- **Tool functionality**: `uv run test_claude_tools.py`
+
+## Enhanced Features
+
+### Portuguese Language Support
+- **Accent Normalization**: Handles common cases where users type without accents
+- **Common Patterns**: `populacao` → `população`, `educacao` → `educação`, `saude` → `saúde`
+- **Acronym Recognition**: RAIS, IBGE, IPEA, INEP, TSE, SUS, PNAD prioritized correctly
+
+### Smart Search Ranking
+- **Exact matches**: Slug and name matches get highest priority
+- **Acronym bonus**: Important Brazilian data acronyms get relevance boost
+- **Position weighting**: Earlier word positions in names get higher scores
+- **Official sources**: Government organizations get priority ranking
+
+### AI-Friendly Output
+- **Single-call efficiency**: Comprehensive information without multiple API calls
+- **Structured responses**: Consistent formatting for LLM consumption
+- **Ready-to-use references**: Direct BigQuery table paths included
+- **Next-step guidance**: Clear instructions for follow-up actions
+- **Debug information**: Search strategies and query processing details
+
+### BigQuery Integration
+- **Service Account Support**: Tested with `google-cloud-bigquery`
+- **Access Verification**: Automated permission testing
+- **Query Generation**: Context-aware SQL with optimization tips
+- **Table References**: Full BigQuery paths like `basedosdados.br_ibge_populacao.municipio`
 
 ## Base dos Dados API
 
-The server connects to Base dos Dados GraphQL API and provides access to:
-- Datasets with themes, tags, and organization metadata
-- Tables with column schemas and descriptions
-- SQL query generation for BigQuery access
-- Coverage and metadata information
+The server connects to Base dos Dados GraphQL API and provides enhanced access to:
+- **Datasets**: With themes, tags, organization metadata, and structure previews
+- **Tables**: With column schemas, descriptions, and BigQuery references
+- **SQL Generation**: Context-aware query creation with optimization guidance
+- **Metadata**: Coverage information and usage instructions
+
+## Usage in Claude Desktop
+
+### Effective Prompts
+- "Search for IBGE datasets in Base dos Dados"
+- "What Brazilian education data is available?"
+- "Get complete overview of dataset [ID] with all tables"
+- "Generate SQL query for RAIS employment data"
+- "Explore Brazilian census data structure"
+
+### Expected Workflow
+1. **Discover**: Use `search_datasets` with keywords like "população", "RAIS", "educação"
+2. **Explore**: Use `get_dataset_overview` to see complete dataset structure
+3. **Analyze**: Use `get_table_details` for specific table information
+4. **Query**: Use `generate_queries` for ready-to-use SQL
+
+## Testing and Verification
+
+### Connection Tests
+- **MCP Protocol**: `uv run test_mcp_fixed.py` - Tests all tools end-to-end
+- **BigQuery Access**: `uv run test_bigquery_permissions.py` - Verifies data access
+- **Tool Functionality**: `uv run test_claude_tools.py` - Tests search and tool calls
+
+### Debug Information
+- **Search Debug**: Shows which search strategies were used and their results
+- **Query Processing**: Shows how user queries are normalized and enhanced
+- **Fallback Keywords**: Shows alternative search terms used
+
+### Error Handling
+- **GraphQL Errors**: Detailed error messages with suggestions
+- **Network Issues**: Timeout and connection error handling
+- **Data Not Found**: Clear messages when datasets/tables don't exist
+- **Permission Issues**: BigQuery access troubleshooting guidance
 
 ## Notes
 
-This server is based on analysis of the Base dos Dados backend Django application, which uses GraphQL, Django ORM, and integrates with BigQuery for data access.
+This server provides comprehensive, AI-optimized access to Base dos Dados through the MCP protocol. It's designed for efficient LLM interaction with Brazilian public data, offering single-call comprehensive information retrieval and context-aware guidance for data exploration and analysis.
+
+The implementation is based on analysis of the Base dos Dados backend Django application and is optimized for Claude Desktop integration with robust error handling and debugging capabilities.

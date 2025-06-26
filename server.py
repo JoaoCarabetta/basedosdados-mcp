@@ -492,6 +492,158 @@ async def make_graphql_request(query: str, variables: Optional[Dict[str, Any]] =
             raise Exception(f"Unexpected error: {str(e)}")
 
 # =============================================================================
+# Enhanced GraphQL Queries for Consolidated Data Fetching
+# =============================================================================
+
+# Comprehensive dataset overview query with tables and sample columns
+DATASET_OVERVIEW_QUERY = """
+query GetDatasetOverview($id: ID!) {
+    allDataset(id: $id, first: 1) {
+        edges {
+            node {
+                id
+                name
+                slug
+                description
+                organizations {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                themes {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tags {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tables {
+                    edges {
+                        node {
+                            id
+                            name
+                            slug
+                            description
+                            columns {
+                                edges {
+                                    node {
+                                        id
+                                        name
+                                        description
+                                        bigqueryType {
+                                            name
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+# Comprehensive table details query with all columns and metadata
+TABLE_DETAILS_QUERY = """
+query GetTableDetails($id: ID!) {
+    allTable(id: $id, first: 1) {
+        edges {
+            node {
+                id
+                name
+                slug
+                description
+                dataset {
+                    id
+                    name
+                    slug
+                }
+                columns {
+                    edges {
+                        node {
+                            id
+                            name
+                            description
+                            bigqueryType {
+                                name
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+# Enhanced search query with table and column counts
+ENHANCED_SEARCH_QUERY = """
+query EnhancedSearchDatasets($query: String, $first: Int) {
+    allDataset(
+        description_Icontains: $query,
+        first: $first
+    ) {
+        edges {
+            node {
+                id
+                name
+                slug
+                description
+                organizations {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                themes {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tags {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tables {
+                    edges {
+                        node {
+                            id
+                            name
+                            slug
+                            columns {
+                                edges {
+                                    node {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+# =============================================================================
 # MCP Tool Definitions
 # =============================================================================
 
@@ -531,35 +683,35 @@ async def handle_read_resource(uri: str) -> str:
     if uri == "basedosdados://help":
         return """Base dos Dados MCP Server Help
 
-This server provides metadata access to Base dos Dados, Brazil's open data platform.
+This server provides comprehensive metadata access to Base dos Dados, Brazil's open data platform.
 
-🔧 Available Tools:
-- search_datasets: Search for datasets by name, theme, or organization
-- get_dataset_info: Get detailed information about a specific dataset
-- list_tables: List all tables in a dataset
-- get_table_info: Get detailed information about a specific table
-- list_columns: List all columns in a table
-- get_column_info: Get detailed information about a specific column
-- generate_sql_query: Generate BigQuery SQL for a table
+🔧 **Enhanced Tools for AI:**
+- **search_datasets**: Search with rich info including table/column counts and BigQuery references
+- **get_dataset_overview**: Complete dataset view with all tables, columns, and ready-to-use SQL
+- **get_table_details**: Comprehensive table info with column types, descriptions, and sample queries
+- **explore_data**: Multi-level exploration for quick discovery or detailed analysis
+- **generate_queries**: Context-aware SQL generation with optimization tips
 
-📊 What is Base dos Dados?
+📊 **What is Base dos Dados?**
 Base dos Dados is Brazil's public data platform that standardizes and provides
-access to Brazilian public datasets through Google BigQuery.
+access to Brazilian public datasets through Google BigQuery with references like:
+`basedosdados.br_ibge_censo_demografico.municipio`
 
-🚀 Getting Started:
-1. Use search_datasets to find datasets of interest
-2. Use get_dataset_info to explore dataset structure
-3. Use list_tables and get_table_info to explore table structure
-4. Use generate_sql_query to create BigQuery SQL for data access
+🚀 **AI-Optimized Workflow:**
+1. **Discover**: Use `search_datasets` to find relevant data with structure preview
+2. **Explore**: Use `get_dataset_overview` to see complete dataset structure in one call
+3. **Analyze**: Use `get_table_details` for full column information and sample queries
+4. **Query**: Use `generate_queries` for context-aware SQL with BigQuery references
 
-📝 Important Notes:
-- This server provides metadata only (no actual data)
-- Use generated SQL queries in BigQuery for data access
-- Filter syntax uses single underscores (name_Icontains)
+📝 **Key Features:**
+- **Single-call efficiency**: Get comprehensive info without multiple API calls
+- **Ready-to-use BigQuery references**: Direct table access paths included
+- **AI-friendly responses**: Structured for LLM consumption and decision making
+- **Smart search ranking**: Acronyms like "RAIS", "IBGE" prioritized correctly
 
-🌐 More Information:
+🌐 **More Information:**
 - Website: https://basedosdados.org
-- Documentation: https://docs.basedosdados.org
+- Documentation: https://docs.basedosdados.org  
 - Python Package: pip install basedosdados
 """
     elif uri == "basedosdados://datasets":
@@ -582,7 +734,7 @@ async def handle_list_tools() -> List[Tool]:
     return [
         Tool(
             name="search_datasets",
-            description="Search for datasets by name, theme, or organization",
+            description="Search for datasets with comprehensive information including table and column counts",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -600,16 +752,16 @@ async def handle_list_tools() -> List[Tool]:
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "Maximum number of results (default: 20)",
-                        "default": 20,
+                        "description": "Maximum number of results (default: 10)",
+                        "default": 10,
                     },
                 },
                 "required": ["query"],
             },
         ),
         Tool(
-            name="get_dataset_info",
-            description="Get detailed information about a specific dataset",
+            name="get_dataset_overview",
+            description="Get complete dataset overview including all tables with columns, descriptions, and ready-to-use BigQuery table references (e.g., basedosdados.br_bd_vizinhanca.municipio)",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -622,79 +774,71 @@ async def handle_list_tools() -> List[Tool]:
             },
         ),
         Tool(
-            name="list_tables",
-            description="List all tables in a dataset",
+            name="get_table_details",
+            description="Get comprehensive table information with all columns, types, descriptions, and BigQuery access instructions",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "table_id": {
+                        "type": "string",
+                        "description": "The UUID of the table",
+                    }
+                },
+                "required": ["table_id"],
+            },
+        ),
+        Tool(
+            name="explore_data",
+            description="Multi-level data exploration: get dataset overview with top tables and key columns, or table details with sample queries",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "dataset_id": {
                         "type": "string",
-                        "description": "The UUID of the dataset",
+                        "description": "The UUID of the dataset to explore (optional if table_id provided)",
+                    },
+                    "table_id": {
+                        "type": "string",
+                        "description": "The UUID of the table to explore (optional if dataset_id provided)",
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["overview", "detailed", "related"],
+                        "description": "Exploration mode: 'overview' for quick summary, 'detailed' for complete info, 'related' for finding similar data",
+                        "default": "overview"
                     }
                 },
-                "required": ["dataset_id"],
+                "required": [],
             },
         ),
         Tool(
-            name="get_table_info",
-            description="Get detailed information about a specific table",
+            name="generate_queries",
+            description="Generate context-aware SQL queries with BigQuery table references and optimization suggestions",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "table_id": {
                         "type": "string",
                         "description": "The UUID of the table",
-                    }
-                },
-                "required": ["table_id"],
-            },
-        ),
-        Tool(
-            name="list_columns",
-            description="List all columns in a table",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "table_id": {
+                    },
+                    "query_type": {
                         "type": "string",
-                        "description": "The UUID of the table",
-                    }
-                },
-                "required": ["table_id"],
-            },
-        ),
-        Tool(
-            name="get_column_info",
-            description="Get detailed information about a specific column",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "column_id": {
-                        "type": "string",
-                        "description": "The UUID of the column",
-                    }
-                },
-                "required": ["column_id"],
-            },
-        ),
-        Tool(
-            name="generate_sql_query",
-            description="Generate a SQL query for querying a table in BigQuery",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "table_id": {
-                        "type": "string",
-                        "description": "The UUID of the table",
+                        "enum": ["select", "aggregate", "filter", "join", "sample"],
+                        "description": "Type of SQL query to generate",
+                        "default": "select"
                     },
                     "columns": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of column names to include (optional, includes all if not specified)",
+                        "description": "Specific columns to include (optional)",
+                    },
+                    "filters": {
+                        "type": "object",
+                        "description": "Filter conditions as key-value pairs (optional)",
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "LIMIT clause for the query (optional)",
+                        "description": "Row limit for the query (optional)",
                     },
                 },
                 "required": ["table_id"],
@@ -815,8 +959,23 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
             seen_ids = set()
             search_attempts = []
             
-            # Strategy 1: Slug search for exact matches (highest priority for acronyms)
-            if processed_query and len(processed_query.strip()) <= 10:  # Likely acronym
+            # Strategy 1: Enhanced search with comprehensive information
+            try:
+                variables = {"first": limit, "query": processed_query}
+                result = await make_graphql_request(ENHANCED_SEARCH_QUERY, variables)
+                
+                if result.get("data", {}).get("allDataset", {}).get("edges"):
+                    for edge in result["data"]["allDataset"]["edges"]:
+                        node = edge["node"]
+                        if node["id"] not in seen_ids:
+                            seen_ids.add(node["id"])
+                            all_datasets.append(edge)
+                    search_attempts.append(f"Enhanced search: {len(all_datasets)} results")
+            except Exception as e:
+                search_attempts.append(f"Enhanced search failed: {str(e)}")
+            
+            # Strategy 2: Slug search for exact matches (highest priority for acronyms)
+            if len(all_datasets) < 3 and processed_query and len(processed_query.strip()) <= 10:  # Likely acronym
                 try:
                     slug_query = """
                     query SearchBySlug($slug: String, $first: Int) {
@@ -848,6 +1007,22 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                                             }
                                         }
                                     }
+                                    tables {
+                                        edges {
+                                            node {
+                                                id
+                                                name
+                                                slug
+                                                columns {
+                                                    edges {
+                                                        node {
+                                                            id
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -857,53 +1032,16 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                     slug_result = await make_graphql_request(slug_query, variables)
                     
                     if slug_result.get("data", {}).get("allDataset", {}).get("edges"):
+                        initial_count = len(all_datasets)
                         for edge in slug_result["data"]["allDataset"]["edges"]:
                             node = edge["node"]
                             if node["id"] not in seen_ids:
                                 seen_ids.add(node["id"])
-                                all_datasets.append(edge)
-                        search_attempts.append(f"Slug search: {len(all_datasets)} results")
+                                all_datasets.insert(0, edge)  # Insert at beginning for highest priority
+                        if len(all_datasets) > initial_count:
+                            search_attempts.append(f"Slug search: +{len(all_datasets) - initial_count} (prioritized)")
                 except Exception as e:
                     search_attempts.append(f"Slug search failed: {str(e)}")
-            
-            # Strategy 2: Name search with processed query (prioritize name matches)
-            if len(all_datasets) < limit and processed_query:
-                try:
-                    variables = {"first": limit - len(all_datasets), "query": processed_query}
-                    name_result = await make_graphql_request(graphql_query_name, variables)
-                    
-                    if name_result.get("data", {}).get("allDataset", {}).get("edges"):
-                        initial_count = len(all_datasets)
-                        for edge in name_result["data"]["allDataset"]["edges"]:
-                            node = edge["node"]
-                            if node["id"] not in seen_ids:
-                                seen_ids.add(node["id"])
-                                all_datasets.append(edge)
-                                if len(all_datasets) >= limit:
-                                    break
-                        if len(all_datasets) > initial_count:
-                            search_attempts.append(f"Name search: +{len(all_datasets) - initial_count}")
-                except Exception as e:
-                    search_attempts.append(f"Name search failed: {str(e)}")
-            
-            # Strategy 3: Description search with processed query (complement with description matches)
-            if len(all_datasets) < limit and processed_query:
-                try:
-                    variables = {"first": limit - len(all_datasets), "query": processed_query}
-                    result = await make_graphql_request(graphql_query_desc, variables)
-                    
-                    if result.get("data", {}).get("allDataset", {}).get("edges"):
-                        initial_count = len(all_datasets)
-                        for edge in result["data"]["allDataset"]["edges"]:
-                            node = edge["node"]
-                            if node["id"] not in seen_ids:
-                                seen_ids.add(node["id"])
-                                all_datasets.append(edge)
-                                if len(all_datasets) >= limit:
-                                    break
-                        search_attempts.append(f"Description search: +{len(all_datasets) - initial_count}")
-                except Exception as e:
-                    search_attempts.append(f"Description search failed: {str(e)}")
             
             # Strategy 4: Fallback keyword searches (if main search failed or returned few results)
             if len(all_datasets) < max(5, limit // 4) and fallback_keywords:
@@ -969,6 +1107,23 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                         include_dataset = False
                     
                     if include_dataset:
+                        # Calculate table and column counts
+                        tables = node.get("tables", {}).get("edges", [])
+                        table_count = len(tables)
+                        total_columns = sum(len(table["node"].get("columns", {}).get("edges", [])) for table in tables)
+                        
+                        # Get sample table names
+                        sample_tables = [table["node"]["name"] for table in tables[:3]]
+                        if len(tables) > 3:
+                            sample_tables.append(f"... and {len(tables) - 3} more")
+                        
+                        # Generate a sample BigQuery reference if we have tables
+                        sample_bigquery_ref = ""
+                        if tables:
+                            dataset_slug = node.get("slug", "")
+                            first_table_slug = tables[0]["node"].get("slug", "")
+                            sample_bigquery_ref = f"basedosdados.{dataset_slug}.{first_table_slug}"
+                        
                         datasets.append({
                             "id": node["id"],
                             "name": node["name"],
@@ -977,6 +1132,10 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                             "organizations": ", ".join(org_names),
                             "themes": theme_names,
                             "tags": tag_names,
+                            "table_count": table_count,
+                            "total_columns": total_columns,
+                            "sample_tables": sample_tables,
+                            "sample_bigquery_ref": sample_bigquery_ref
                         })
             
             # Apply intelligent ranking to improve result relevance
@@ -990,18 +1149,53 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
             if fallback_keywords:
                 debug_info += f"\n**Fallback Keywords:** {', '.join(fallback_keywords)}"
             
-            return [TextContent(
-                type="text",
-                text=f"Found {len(datasets)} datasets:{debug_info}\n\n" + 
-                     "\n\n".join([
-                         f"**{ds['name']}** (ID: {ds['id']}, Slug: {ds['slug']})\n"
-                         f"Description: {ds['description']}\n"
-                         f"Organizations: {ds['organizations']}\n"
-                         f"Themes: {', '.join(ds['themes'])}\n"
-                         f"Tags: {', '.join(ds['tags'])}"
-                         for ds in datasets
-                     ])
-            )]
+            # Build enhanced response with data structure information
+            response_parts = []
+            for ds in datasets:
+                basic_info = f"**{ds['name']}** (ID: {ds['id']}, Slug: {ds['slug']})"
+                
+                # Data structure summary
+                if ds['table_count'] > 0:
+                    structure_info = f"📊 **Data:** {ds['table_count']} tables, {ds['total_columns']} total columns"
+                    if ds['sample_bigquery_ref']:
+                        structure_info += f"\n🔗 **Sample Access:** `{ds['sample_bigquery_ref']}`"
+                else:
+                    structure_info = f"📊 **Data:** No tables available"
+                
+                # Tables preview
+                if ds['sample_tables']:
+                    tables_info = f"📋 **Tables:** {', '.join(ds['sample_tables'])}"
+                else:
+                    tables_info = ""
+                
+                # Metadata
+                metadata = f"**Description:** {ds['description']}"
+                if ds['organizations']:
+                    metadata += f"\n**Organizations:** {ds['organizations']}"
+                if ds['themes']:
+                    metadata += f"\n**Themes:** {', '.join(ds['themes'])}"
+                if ds['tags']:
+                    metadata += f"\n**Tags:** {', '.join(ds['tags'])}"
+                
+                # Combine all parts
+                dataset_text = f"{basic_info}\n{structure_info}"
+                if tables_info:
+                    dataset_text += f"\n{tables_info}"
+                dataset_text += f"\n{metadata}"
+                
+                response_parts.append(dataset_text)
+            
+            final_response = f"Found {len(datasets)} datasets:{debug_info}\n\n" + "\n\n".join(response_parts)
+            
+            # Add usage tips for first-time users
+            if datasets:
+                final_response += f"""\n\n💡 **Next Steps:**
+- Use `get_dataset_overview` with a dataset ID to see all tables and columns
+- Use `get_table_details` with a table ID for complete column information  
+- Use `generate_queries` to create SQL for BigQuery access
+- Access data using BigQuery references like: `{datasets[0]['sample_bigquery_ref'] if datasets[0]['sample_bigquery_ref'] else 'basedosdados.dataset.table'}`"""
+            
+            return [TextContent(type="text", text=final_response)]
             
         except Exception as e:
             return [TextContent(type="text", text=f"Error searching datasets: {str(e)}")]
@@ -1416,6 +1610,338 @@ Description: {column.get('description', 'No description available')}
                 
         except Exception as e:
             return [TextContent(type="text", text=f"Error generating SQL query: {str(e)}")]
+    
+    elif name == "get_dataset_overview":
+        dataset_id = clean_graphql_id(arguments.get("dataset_id"))
+        
+        try:
+            result = await make_graphql_request(DATASET_OVERVIEW_QUERY, {"id": dataset_id})
+            
+            if result.get("data", {}).get("allDataset", {}).get("edges"):
+                edges = result["data"]["allDataset"]["edges"]
+                if edges:
+                    dataset = edges[0]["node"]
+                    org_names = [org["node"]["name"] for org in dataset.get("organizations", {}).get("edges", [])]
+                    theme_names = [t["node"]["name"] for t in dataset.get("themes", {}).get("edges", [])]
+                    tag_names = [t["node"]["name"] for t in dataset.get("tags", {}).get("edges", [])]
+                    
+                    # Process tables with their columns
+                    tables_info = []
+                    total_columns = 0
+                    
+                    for table_edge in dataset.get("tables", {}).get("edges", []):
+                        table = table_edge["node"]
+                        columns = table.get("columns", {}).get("edges", [])
+                        column_count = len(columns)
+                        total_columns += column_count
+                        
+                        # Get sample column names (first 5)
+                        sample_columns = [col["node"]["name"] for col in columns[:5]]
+                        if len(columns) > 5:
+                            sample_columns.append(f"... and {len(columns) - 5} more")
+                        
+                        # Generate full BigQuery table reference
+                        dataset_slug = dataset.get("slug", "")
+                        table_slug = table.get("slug", "")
+                        bigquery_ref = f"basedosdados.{dataset_slug}.{table_slug}"
+                        
+                        tables_info.append({
+                            "id": table["id"],
+                            "name": table["name"],
+                            "slug": table_slug,
+                            "description": table.get("description", "No description available"),
+                            "column_count": column_count,
+                            "sample_columns": sample_columns,
+                            "bigquery_reference": bigquery_ref
+                        })
+                    
+                    # Build comprehensive response
+                    response = f"""**📊 Dataset Overview: {dataset['name']}**
+
+**Basic Information:**
+- **ID:** {dataset['id']}
+- **Slug:** {dataset.get('slug', '')}
+- **Description:** {dataset.get('description', 'No description available')}
+- **Organizations:** {', '.join(org_names)}
+- **Themes:** {', '.join(theme_names)}
+- **Tags:** {', '.join(tag_names)}
+
+**Data Structure:**
+- **Total Tables:** {len(tables_info)}
+- **Total Columns:** {total_columns}
+
+**📋 Tables with BigQuery Access:**
+"""
+                    
+                    for table in tables_info:
+                        response += f"""
+**{table['name']}** ({table['column_count']} columns)
+- **BigQuery Reference:** `{table['bigquery_reference']}`
+- **Table ID:** {table['id']}
+- **Description:** {table['description']}
+- **Sample Columns:** {', '.join(table['sample_columns'])}
+"""
+                    
+                    response += f"""
+
+**🔍 Next Steps:**
+- Use `get_table_details` with a table ID to see all columns and types
+- Use `generate_queries` to create SQL for specific tables
+- Access data in BigQuery using the table references above (e.g., `SELECT * FROM {tables_info[0]['bigquery_reference'] if tables_info else 'basedosdados.dataset.table'} LIMIT 100`)
+"""
+                    
+                    return [TextContent(type="text", text=response)]
+                else:
+                    return [TextContent(type="text", text="Dataset not found")]
+            else:
+                return [TextContent(type="text", text="Dataset not found")]
+                
+        except Exception as e:
+            return [TextContent(type="text", text=f"Error getting dataset overview: {str(e)}")]
+    
+    elif name == "get_table_details":
+        table_id = clean_graphql_id(arguments.get("table_id"))
+        
+        try:
+            result = await make_graphql_request(TABLE_DETAILS_QUERY, {"id": table_id})
+            
+            if result.get("data", {}).get("allTable", {}).get("edges"):
+                edges = result["data"]["allTable"]["edges"]
+                if edges:
+                    table = edges[0]["node"]
+                    dataset = table["dataset"]
+                    columns = table.get("columns", {}).get("edges", [])
+                    
+                    # Generate BigQuery table reference
+                    dataset_slug = dataset.get("slug", "")
+                    table_slug = table.get("slug", "")
+                    bigquery_ref = f"basedosdados.{dataset_slug}.{table_slug}"
+                    
+                    response = f"""**📋 Table Details: {table['name']}**
+
+**Basic Information:**
+- **Table ID:** {table['id']}
+- **Table Slug:** {table_slug}
+- **Description:** {table.get('description', 'No description available')}
+- **BigQuery Reference:** `{bigquery_ref}`
+
+**Dataset Context:**
+- **Dataset:** {dataset['name']} 
+- **Dataset ID:** {dataset['id']}
+- **Dataset Slug:** {dataset.get('slug', '')}
+
+**📊 Columns ({len(columns)} total):**
+"""
+                    
+                    for col_edge in columns:
+                        column = col_edge["node"]
+                        col_type = column.get("bigqueryType", {}).get("name", "Unknown")
+                        col_desc = column.get("description", "No description")
+                        response += f"""
+**{column['name']}** ({col_type})
+- ID: {column['id']}
+- Description: {col_desc}
+"""
+                    
+                    # Generate sample SQL queries
+                    column_names = [col["node"]["name"] for col in columns]
+                    sample_columns = ", ".join(column_names[:5])
+                    if len(column_names) > 5:
+                        sample_columns += f", ... -- and {len(column_names) - 5} more"
+                    
+                    response += f"""
+
+**🔍 Sample SQL Queries:**
+
+**Basic Select:**
+```sql
+SELECT {sample_columns}
+FROM `{bigquery_ref}`
+LIMIT 100
+```
+
+**Full Table Schema:**
+```sql
+SELECT *
+FROM `{bigquery_ref}`
+LIMIT 10
+```
+
+**Column Info:**
+```sql
+SELECT column_name, data_type, description
+FROM `{dataset_slug}`.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS
+WHERE table_name = '{table_slug}'
+```
+
+**🚀 Access Instructions:**
+1. Use the BigQuery reference: `{bigquery_ref}`
+2. Run queries in Google BigQuery console
+3. Or use the Base dos Dados Python package: `bd.read_table('{dataset_slug}', '{table_slug}')`
+"""
+                    
+                    return [TextContent(type="text", text=response)]
+                else:
+                    return [TextContent(type="text", text="Table not found")]
+            else:
+                return [TextContent(type="text", text="Table not found")]
+                
+        except Exception as e:
+            return [TextContent(type="text", text=f"Error getting table details: {str(e)}")]
+    
+    elif name == "explore_data":
+        dataset_id = arguments.get("dataset_id")
+        table_id = arguments.get("table_id")
+        mode = arguments.get("mode", "overview")
+        
+        if not dataset_id and not table_id:
+            return [TextContent(type="text", text="Please provide either dataset_id or table_id")]
+        
+        try:
+            if dataset_id:
+                # Explore dataset
+                dataset_id = clean_graphql_id(dataset_id)
+                result = await make_graphql_request(DATASET_OVERVIEW_QUERY, {"id": dataset_id})
+                
+                if result.get("data", {}).get("allDataset", {}).get("edges"):
+                    dataset = result["data"]["allDataset"]["edges"][0]["node"]
+                    tables = dataset.get("tables", {}).get("edges", [])
+                    
+                    if mode == "overview":
+                        # Quick overview with top 3 tables
+                        response = f"""**🔍 Dataset Exploration: {dataset['name']}**
+
+**Quick Overview:**
+- **Total Tables:** {len(tables)}
+- **Organizations:** {', '.join([org["node"]["name"] for org in dataset.get("organizations", {}).get("edges", [])])}
+- **Themes:** {', '.join([t["node"]["name"] for t in dataset.get("themes", {}).get("edges", [])])}
+
+**🏆 Top Tables:**
+"""
+                        for table_edge in tables[:3]:
+                            table = table_edge["node"]
+                            col_count = len(table.get("columns", {}).get("edges", []))
+                            bigquery_ref = f"basedosdados.{dataset.get('slug', '')}.{table.get('slug', '')}"
+                            response += f"- **{table['name']}** ({col_count} cols) - `{bigquery_ref}`\n"
+                        
+                        if len(tables) > 3:
+                            response += f"\n... and {len(tables) - 3} more tables. Use mode='detailed' to see all."
+                        
+                    elif mode == "detailed":
+                        # Use the full dataset overview
+                        return await handle_call_tool("get_dataset_overview", {"dataset_id": arguments.get("dataset_id")})
+                    
+                    return [TextContent(type="text", text=response)]
+                else:
+                    return [TextContent(type="text", text="Dataset not found")]
+            
+            elif table_id:
+                # Explore table - delegate to get_table_details
+                return await handle_call_tool("get_table_details", {"table_id": table_id})
+                
+        except Exception as e:
+            return [TextContent(type="text", text=f"Error exploring data: {str(e)}")]
+    
+    elif name == "generate_queries":
+        table_id = clean_graphql_id(arguments.get("table_id"))
+        query_type = arguments.get("query_type", "select")
+        columns = arguments.get("columns", [])
+        filters = arguments.get("filters", {})
+        limit = arguments.get("limit")
+        
+        try:
+            # Get table information for context
+            result = await make_graphql_request(TABLE_DETAILS_QUERY, {"id": table_id})
+            
+            if result.get("data", {}).get("allTable", {}).get("edges"):
+                table = result["data"]["allTable"]["edges"][0]["node"]
+                dataset = table["dataset"]
+                table_columns = table.get("columns", {}).get("edges", [])
+                
+                # Generate BigQuery reference
+                dataset_slug = dataset.get("slug", "")
+                table_slug = table.get("slug", "")
+                bigquery_ref = f"basedosdados.{dataset_slug}.{table_slug}"
+                
+                # Get available columns if not specified
+                if not columns:
+                    columns = [col["node"]["name"] for col in table_columns]
+                
+                # Generate different types of queries
+                queries = []
+                
+                if query_type == "select" or query_type == "sample":
+                    column_list = ", ".join(columns[:10])  # Limit for readability
+                    if len(columns) > 10:
+                        column_list += f" -- and {len(columns) - 10} more columns"
+                    
+                    query = f"SELECT {column_list}\nFROM `{bigquery_ref}`"
+                    if limit:
+                        query += f"\nLIMIT {limit}"
+                    else:
+                        query += "\nLIMIT 100"
+                    queries.append(("Basic Select", query))
+                
+                if query_type == "aggregate":
+                    numeric_cols = [col["node"]["name"] for col in table_columns 
+                                   if col["node"].get("bigqueryType", {}).get("name", "") in ["INTEGER", "FLOAT", "NUMERIC"]]
+                    if numeric_cols:
+                        query = f"""SELECT COUNT(*) as total_rows,
+       AVG({numeric_cols[0]}) as avg_{numeric_cols[0]},
+       MIN({numeric_cols[0]}) as min_{numeric_cols[0]},
+       MAX({numeric_cols[0]}) as max_{numeric_cols[0]}
+FROM `{bigquery_ref}`"""
+                        queries.append(("Aggregation Example", query))
+                
+                if filters:
+                    filter_conditions = []
+                    for col, value in filters.items():
+                        if isinstance(value, str):
+                            filter_conditions.append(f"{col} = '{value}'")
+                        else:
+                            filter_conditions.append(f"{col} = {value}")
+                    
+                    if filter_conditions:
+                        query = f"""SELECT *
+FROM `{bigquery_ref}`
+WHERE {' AND '.join(filter_conditions)}"""
+                        if limit:
+                            query += f"\nLIMIT {limit}"
+                        queries.append(("Filtered Query", query))
+                
+                # Build response
+                response = f"""**🔍 Generated SQL Queries for {table['name']}**
+
+**Table Reference:** `{bigquery_ref}`
+**Available Columns:** {len(table_columns)}
+
+"""
+                for query_name, query_sql in queries:
+                    response += f"""**{query_name}:**
+```sql
+{query_sql}
+```
+
+"""
+                
+                response += f"""**💡 Optimization Tips:**
+- Use `LIMIT` to test queries on large tables
+- Consider partitioning columns for better performance
+- Use `SELECT *` sparingly on tables with many columns
+- Check data freshness and update frequency
+
+**🚀 Access Methods:**
+1. **BigQuery Console:** Copy the SQL above
+2. **Python:** `bd.read_sql(query, billing_project_id='your-project')`
+3. **R:** Use `bigrquery` package with the table reference
+"""
+                
+                return [TextContent(type="text", text=response)]
+            else:
+                return [TextContent(type="text", text="Table not found")]
+                
+        except Exception as e:
+            return [TextContent(type="text", text=f"Error generating queries: {str(e)}")]
     
     else:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]
