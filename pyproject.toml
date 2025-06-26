@@ -12,6 +12,7 @@ dependencies = [
     "mcp>=1.0.0",
     "httpx>=0.25.0",
     "pydantic>=2.0.0,<2.11",
+    "google-cloud-bigquery>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +24,9 @@ dev = [
 
 [project.scripts]
 basedosdados-mcp = "server:main"
+
+[tool.setuptools]
+py-modules = ["server"]
 
 [tool.black]
 line-length = 100

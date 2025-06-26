@@ -7,6 +7,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: mcp>=1.0.0
 Requires-Dist: httpx>=0.25.0
 Requires-Dist: pydantic<2.11,>=2.0.0
+Requires-Dist: google-cloud-bigquery>=3.0.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: black>=23.0.0; extra == "dev"
@@ -22,12 +23,6 @@ A Model Context Protocol (MCP) server that provides access to Base dos Dados, Br
 - Get detailed information about datasets, tables, and columns
 - Generate SQL queries for BigQuery access
 - Access metadata and documentation
-
-## Installation
-
-```bash
-uv install -r requirements.txt
-```
 
 ## Usage
 
@@ -67,16 +62,44 @@ Add to your MCP client configuration:
 ### Setup
 
 ```bash
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv install -r requirements.txt
+uv init
 ```
 
 ### Testing
 
+#### Run MCP Server
 ```bash
-python server.py
+uv run server.py
 ```
+
+#### Debug and Test API Endpoints
+
+Use the comprehensive endpoint testing script (ensure dependencies are installed first):
+
+```bash
+# Install dependencies if not already done
+uv init
+
+# Test default endpoint with full test suite
+uv run debug_endpoints.py
+
+# Test custom endpoint
+uv run debug_endpoints.py --endpoint https://custom-api-url.com/graphql
+
+# Quick connectivity test only
+uv run debug_endpoints.py --quick
+
+# Save detailed results to JSON file
+uv run debug_endpoints.py --output test_results.json
+```
+
+**Debug Features:**
+- ✅ Configurable endpoint URL testing
+- ✅ Comprehensive GraphQL query testing
+- ✅ Detailed error reporting and timing
+- ✅ Progressive testing (searches → datasets → tables → columns)
+- ✅ JSON export of test results
+- ✅ Quick connectivity verification mode
 
 ## About Base dos Dados
 

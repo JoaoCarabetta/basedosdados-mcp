@@ -13,7 +13,9 @@
       "Bash(uv pip:*)",
       "Bash(echo $PATH)",
       "Bash(/opt/homebrew/bin/uv run python --version)",
-      "Bash(/opt/homebrew/bin/uv run:*)"
+      "Bash(/opt/homebrew/bin/uv run:*)",
+      "Bash(uv add:*)",
+      "Bash(uv sync:*)"
     ],
     "deny": []
   }

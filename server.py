@@ -292,6 +292,137 @@ def preprocess_search_query(query: str) -> tuple[str, list[str]]:
     
     return normalized_query, fallback_keywords
 
+def calculate_search_relevance(query: str, dataset: dict) -> float:
+    """
+    Calculate relevance score for search results to improve ranking.
+    
+    This implements a scoring system that prioritizes:
+    1. Exact matches (especially for acronyms like RAIS, IBGE)
+    2. Name matches over description matches
+    3. Complete word matches over partial matches
+    4. Important/popular datasets
+    
+    Args:
+        query: Original search query
+        dataset: Dataset dictionary with name, description, etc.
+        
+    Returns:
+        Float relevance score (higher = more relevant)
+    """
+    if not query or not dataset:
+        return 0.0
+    
+    score = 0.0
+    query_lower = query.lower().strip()
+    name = dataset.get('name', '').lower()
+    description = dataset.get('description', '').lower()
+    slug = dataset.get('slug', '').lower()
+    
+    # 1. Exact match bonuses (highest priority)
+    if query_lower == name.lower():
+        score += 100.0  # Perfect name match
+    elif query_lower in name.split():
+        score += 80.0   # Exact word in name
+    elif query_lower == slug:
+        score += 200.0  # Perfect slug match - highest priority!
+    
+    # Special case: if query matches slug exactly, this should be the top result
+    if query_lower == slug.replace('_', ' ') or query_lower == slug:
+        score += 250.0  # Maximum priority for slug matches
+    
+    # 2. Acronym and important dataset bonuses
+    important_acronyms = {
+        'rais': 'relação anual de informações sociais',
+        'ibge': 'instituto brasileiro de geografia e estatística',
+        'ipea': 'instituto de pesquisa econômica aplicada',
+        'inep': 'instituto nacional de estudos e pesquisas educacionais',
+        'tse': 'tribunal superior eleitoral',
+        'sus': 'sistema único de saúde',
+        'pnad': 'pesquisa nacional por amostra de domicílios',
+        'pof': 'pesquisa de orçamentos familiares',
+        'censo': 'censo demográfico',
+        'caged': 'cadastro geral de empregados e desempregados',
+        'sinasc': 'sistema de informações sobre nascidos vivos',
+        'sim': 'sistema de informações sobre mortalidade'
+    }
+    
+    if query_lower in important_acronyms:
+        expected_name = important_acronyms[query_lower]
+        # Check if this dataset matches the expected full name
+        if any(word in name for word in expected_name.split()):
+            score += 150.0  # Major bonus for matching important acronym
+        elif any(word in description for word in expected_name.split()):
+            score += 100.0  # Good bonus for description match
+        
+        # Extra bonus if the acronym appears in parentheses in the name (like "RAIS" in the name)
+        import re
+        acronym_pattern = r'\b' + re.escape(query_lower.upper()) + r'\b'
+        if re.search(acronym_pattern, dataset.get('name', '')):
+            score += 180.0  # Very high bonus for acronym in name
+    
+    # 3. Name vs description positioning bonus
+    if query_lower in name:
+        score += 50.0  # Name contains query
+        # Extra bonus for position in name (earlier = better)
+        name_words = name.split()
+        for i, word in enumerate(name_words):
+            if query_lower in word:
+                score += max(20.0 - i * 2, 5.0)  # Earlier position = higher bonus
+                break
+    
+    if query_lower in description:
+        score += 20.0  # Description contains query
+    
+    # 4. Word boundary matches (complete words better than substrings)
+    import re
+    word_pattern = r'\b' + re.escape(query_lower) + r'\b'
+    if re.search(word_pattern, name):
+        score += 30.0  # Complete word in name
+    if re.search(word_pattern, description):
+        score += 15.0  # Complete word in description
+    
+    # 5. Length and specificity bonuses
+    if len(query_lower) >= 4:  # Longer queries get bonus for specificity
+        score += min(len(query_lower) * 2, 20.0)
+    
+    # 6. Popular/official source bonuses
+    organizations = dataset.get('organizations', '').lower()
+    official_sources = ['ibge', 'ipea', 'inep', 'ministério', 'secretaria', 'agência nacional']
+    for source in official_sources:
+        if source in organizations:
+            score += 10.0
+            break
+    
+    # 7. Penalty for very long names (likely less relevant)
+    if len(name) > 100:
+        score -= 5.0
+    
+    return score
+
+def rank_search_results(query: str, datasets: list) -> list:
+    """
+    Rank search results by relevance score.
+    
+    Args:
+        query: Original search query
+        datasets: List of dataset dictionaries
+        
+    Returns:
+        List of datasets sorted by relevance (highest first)
+    """
+    if not datasets:
+        return datasets
+    
+    # Calculate relevance scores
+    scored_datasets = []
+    for dataset in datasets:
+        score = calculate_search_relevance(query, dataset)
+        scored_datasets.append((score, dataset))
+    
+    # Sort by score (descending) and return datasets
+    scored_datasets.sort(key=lambda x: x[0], reverse=True)
+    return [dataset for score, dataset in scored_datasets]
+
 # =============================================================================
 # GraphQL API Client
 # =============================================================================
@@ -684,29 +815,65 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
             seen_ids = set()
             search_attempts = []
             
-            # Strategy 1: Primary search with processed query (description)
-            if processed_query:
+            # Strategy 1: Slug search for exact matches (highest priority for acronyms)
+            if processed_query and len(processed_query.strip()) <= 10:  # Likely acronym
                 try:
-                    variables = {"first": limit, "query": processed_query}
-                    result = await make_graphql_request(graphql_query_desc, variables)
+                    slug_query = """
+                    query SearchBySlug($slug: String, $first: Int) {
+                        allDataset(slug: $slug, first: $first) {
+                            edges {
+                                node {
+                                    id
+                                    name
+                                    slug
+                                    description
+                                    organizations {
+                                        edges {
+                                            node {
+                                                name
+                                            }
+                                        }
+                                    }
+                                    themes {
+                                        edges {
+                                            node {
+                                                name
+                                            }
+                                        }
+                                    }
+                                    tags {
+                                        edges {
+                                            node {
+                                                name
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    """
+                    variables = {"slug": processed_query.lower(), "first": 1}
+                    slug_result = await make_graphql_request(slug_query, variables)
                     
-                    if result.get("data", {}).get("allDataset", {}).get("edges"):
-                        for edge in result["data"]["allDataset"]["edges"]:
+                    if slug_result.get("data", {}).get("allDataset", {}).get("edges"):
+                        for edge in slug_result["data"]["allDataset"]["edges"]:
                             node = edge["node"]
                             if node["id"] not in seen_ids:
                                 seen_ids.add(node["id"])
                                 all_datasets.append(edge)
-                        search_attempts.append(f"Description search: {len(all_datasets)} results")
+                        search_attempts.append(f"Slug search: {len(all_datasets)} results")
                 except Exception as e:
-                    search_attempts.append(f"Description search failed: {str(e)}")
+                    search_attempts.append(f"Slug search failed: {str(e)}")
             
-            # Strategy 2: Name search with processed query (if we need more results)
+            # Strategy 2: Name search with processed query (prioritize name matches)
             if len(all_datasets) < limit and processed_query:
                 try:
                     variables = {"first": limit - len(all_datasets), "query": processed_query}
                     name_result = await make_graphql_request(graphql_query_name, variables)
                     
                     if name_result.get("data", {}).get("allDataset", {}).get("edges"):
+                        initial_count = len(all_datasets)
                         for edge in name_result["data"]["allDataset"]["edges"]:
                             node = edge["node"]
                             if node["id"] not in seen_ids:
@@ -714,11 +881,31 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                                 all_datasets.append(edge)
                                 if len(all_datasets) >= limit:
                                     break
-                        search_attempts.append(f"Name search: +{len(all_datasets) - len([d for d in all_datasets if 'description' in str(d)])}")
+                        if len(all_datasets) > initial_count:
+                            search_attempts.append(f"Name search: +{len(all_datasets) - initial_count}")
                 except Exception as e:
                     search_attempts.append(f"Name search failed: {str(e)}")
             
-            # Strategy 3: Fallback keyword searches (if main search failed or returned few results)
+            # Strategy 3: Description search with processed query (complement with description matches)
+            if len(all_datasets) < limit and processed_query:
+                try:
+                    variables = {"first": limit - len(all_datasets), "query": processed_query}
+                    result = await make_graphql_request(graphql_query_desc, variables)
+                    
+                    if result.get("data", {}).get("allDataset", {}).get("edges"):
+                        initial_count = len(all_datasets)
+                        for edge in result["data"]["allDataset"]["edges"]:
+                            node = edge["node"]
+                            if node["id"] not in seen_ids:
+                                seen_ids.add(node["id"])
+                                all_datasets.append(edge)
+                                if len(all_datasets) >= limit:
+                                    break
+                        search_attempts.append(f"Description search: +{len(all_datasets) - initial_count}")
+                except Exception as e:
+                    search_attempts.append(f"Description search failed: {str(e)}")
+            
+            # Strategy 4: Fallback keyword searches (if main search failed or returned few results)
             if len(all_datasets) < max(5, limit // 4) and fallback_keywords:
                 for keyword in fallback_keywords[:2]:  # Try top 2 keywords only to avoid timeout
                     if len(all_datasets) >= limit:
@@ -742,7 +929,7 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                     except Exception as e:
                         search_attempts.append(f"Keyword '{keyword}' failed: {str(e)}")
             
-            # Strategy 4: If original query was different from processed, try original as fallback
+            # Strategy 5: If original query was different from processed, try original as fallback
             if len(all_datasets) < max(3, limit // 5) and query != processed_query and query.strip():
                 try:
                     variables = {"first": min(10, limit - len(all_datasets)), "query": query.strip()}
@@ -791,6 +978,10 @@ async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextCon
                             "themes": theme_names,
                             "tags": tag_names,
                         })
+            
+            # Apply intelligent ranking to improve result relevance
+            if datasets:
+                datasets = rank_search_results(query, datasets)
             
             # Build response with debug information for troubleshooting
             debug_info = f"\n\n**Search Debug:** {'; '.join(search_attempts)}" if search_attempts else ""
