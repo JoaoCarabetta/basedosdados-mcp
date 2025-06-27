@@ -15,7 +15,8 @@
       "Bash(/opt/homebrew/bin/uv run python --version)",
       "Bash(/opt/homebrew/bin/uv run:*)",
       "Bash(uv add:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "WebFetch(domain:smithery.ai)"
     ],
     "deny": []
   }

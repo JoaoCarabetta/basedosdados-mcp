@@ -1,0 +1,157 @@
+name: basedosdados-mcp
+displayName: Base dos Dados MCP
+description: "Model Context Protocol server for Base dos Dados, Brazil's open data platform. Provides AI-optimized access to Brazilian public datasets with search, exploration, and BigQuery SQL generation capabilities."
+version: 0.1.0
+author: joaoc
+repository: https://github.com/joaoc/basedosdados_mcp
+homepage: https://github.com/joaoc/basedosdados_mcp
+keywords:
+  - brazil
+  - data
+  - bigquery
+  - government
+  - open-data
+  - demographics
+  - economics
+  - mcp-server
+license: MIT
+
+# MCP Server Configuration
+mcp:
+  # Server transport - using stdio for Claude Desktop integration
+  transport: stdio
+  
+  # Command to run the server
+  command: python
+  args:
+    - -m
+    - basedosdados_mcp.main
+  
+  # Environment variables (if needed)
+  env: {}
+  
+  # Server capabilities
+  capabilities:
+    tools: true
+    resources: true
+    prompts: false
+    logging: true
+
+# Tools provided by this MCP server
+tools:
+  - name: search_datasets
+    description: "Search for Brazilian datasets with smart Portuguese language support and AI-optimized results"
+    schema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: "Search query (supports Portuguese with/without accents)"
+        theme:
+          type: string
+          description: "Filter by theme (optional)"
+        organization:
+          type: string
+          description: "Filter by organization (optional)"
+        limit:
+          type: integer
+          default: 10
+          description: "Maximum number of results"
+      required: ["query"]
+  
+  - name: get_dataset_overview
+    description: "Get comprehensive overview of a dataset with all tables and BigQuery references"
+    schema:
+      type: object
+      properties:
+        dataset_id:
+          type: string
+          description: "Dataset ID (e.g., 'br_ibge_populacao')"
+      required: ["dataset_id"]
+  
+  - name: get_table_details
+    description: "Get detailed table information with columns, sample SQL, and usage guidance"
+    schema:
+      type: object
+      properties:
+        dataset_id:
+          type: string
+          description: "Dataset ID"
+        table_id:
+          type: string
+          description: "Table ID"
+      required: ["dataset_id", "table_id"]
+  
+  - name: explore_data
+    description: "Multi-level data exploration with overview, detailed, and related modes"
+    schema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: "Search query or topic"
+        mode:
+          type: string
+          enum: ["overview", "detailed", "related"]
+          default: "overview"
+          description: "Exploration depth level"
+      required: ["query"]
+
+# Resources provided by this MCP server
+resources:
+  - name: basedosdados://help
+    description: "AI-optimized help and usage guidance"
+    mimeType: text/plain
+  
+  - name: basedosdados://datasets
+    description: "Dataset discovery guidance and examples"
+    mimeType: text/plain
+
+# Installation requirements
+requirements:
+  python: ">=3.10,<=3.14"
+  dependencies:
+    - mcp>=1.0.0
+    - httpx>=0.25.0
+    - pydantic>=2.0.0,<2.11
+    - google-cloud-bigquery>=3.0.0
+
+# Configuration schema for users
+configSchema:
+  type: object
+  properties:
+    # No configuration required - server connects to public Base dos Dados API
+  additionalProperties: false
+
+# Documentation and examples
+documentation:
+  quickstart: |
+    1. Search for datasets: search_datasets(query="população")
+    2. Get overview: get_dataset_overview(dataset_id="br_ibge_populacao") 
+    3. Get table details: get_table_details(dataset_id="br_ibge_populacao", table_id="municipio")
+    4. Use provided BigQuery SQL to query actual data
+  
+  examples:
+    - name: "Search IBGE datasets"
+      description: "Find Brazilian census and demographic data"
+      code: 'search_datasets(query="IBGE população")'
+    
+    - name: "Explore education data"
+      description: "Get comprehensive view of Brazilian education datasets"
+      code: 'explore_data(query="educação", mode="detailed")'
+    
+    - name: "Get RAIS employment data"
+      description: "Access detailed employment statistics table"
+      code: 'get_table_details(dataset_id="br_me_rais", table_id="microdados_vinculos")'
+
+# Tags for discovery
+tags:
+  - brazil
+  - government-data
+  - bigquery
+  - demographics
+  - economics
+  - census
+  - employment
+  - education
+  - health

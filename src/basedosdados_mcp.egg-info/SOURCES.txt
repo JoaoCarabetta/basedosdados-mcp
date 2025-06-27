@@ -15,8 +15,3 @@ src/basedosdados_mcp.egg-info/dependency_links.txt
 src/basedosdados_mcp.egg-info/entry_points.txt
 src/basedosdados_mcp.egg-info/requires.txt
 src/basedosdados_mcp.egg-info/top_level.txt
-tests/test_bigquery_permissions.py
-tests/test_claude_tools.py
-tests/test_connection_simple.py
-tests/test_mcp_connection.py
-tests/test_mcp_fixed.py

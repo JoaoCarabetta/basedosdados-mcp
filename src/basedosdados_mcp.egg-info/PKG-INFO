@@ -2,6 +2,25 @@ Metadata-Version: 2.4
 Name: basedosdados-mcp
 Version: 0.1.0
 Summary: Model Context Protocol server for Base dos Dados (Brazilian open data platform)
+Author-email: João Costa <joao@example.com>
+Maintainer-email: João Costa <joao@example.com>
+License: MIT
+Project-URL: Homepage, https://github.com/joaoc/basedosdados_mcp
+Project-URL: Documentation, https://github.com/joaoc/basedosdados_mcp#readme
+Project-URL: Repository, https://github.com/joaoc/basedosdados_mcp
+Project-URL: Bug Tracker, https://github.com/joaoc/basedosdados_mcp/issues
+Keywords: mcp,brazil,data,bigquery,government,open-data
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: 3.14
+Classifier: Topic :: Scientific/Engineering :: Information Analysis
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
 Requires-Python: <=3.14,>=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: mcp>=1.0.0
@@ -28,19 +47,47 @@ A Model Context Protocol (MCP) server that provides access to Base dos Dados, Br
 
 ### As MCP Server
 
-Add to your MCP client configuration:
+To run the server locally and connect with Claude Desktop:
 
-```json
-{
-  "mcpServers": {
-    "basedosdados": {
-      "command": "python",
-      "args": ["server.py"],
-      "cwd": "/path/to/basedosdados_mcp"
+1.  **Install dependencies**:
+    ```bash
+    uv init
+    ```
+2.  **Run the MCP server**:
+    ```bash
+    bash run_server.sh
+    ```
+    This will start the server, typically on `http://127.0.0.1:8000`.
+
+3.  **Configure Claude Desktop**:
+    In Claude Desktop, add a new MCP server configuration pointing to your local server. The configuration should look similar to this:
+
+    ```json
+    {
+      "mcpServers": {
+        /// BigQuery MCP
+        "bigquery": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@ergut/mcp-bigquery-server",
+            "--project-id",
+            "<replcae with project id>",
+            "--location",
+            "<replace with location>",
+            "--key-file",
+            "<replace with service account path>"
+          ]
+        },
+        "basedosdados": {
+          "url": "http://127.0.0.1:8000"
+        }
+      }
     }
-  }
-}
-```
+    ```
+    **Note**: This MCP server provides access to Base dos Dados metadata and tools. To query data directly from BigQuery, you will need a separate MCP server configured for BigQuery access.
+
+
 
 ### Available Tools
 
@@ -69,7 +116,7 @@ uv init
 
 #### Run MCP Server
 ```bash
-uv run server.py
+uv run basedosdados-mcp
 ```
 
 #### Debug and Test API Endpoints

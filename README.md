@@ -46,7 +46,7 @@ To run the server locally and connect with Claude Desktop:
           ]
         },
         "basedosdados": {
-          "command": "/Users/joaoc/Documents/projects/basedosdados_mcp/run_server.sh"
+          "url": "http://127.0.0.1:8000"
         }
       }
     }
