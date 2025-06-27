@@ -12,4 +12,4 @@ echo "Working directory: $(pwd)" >&2
 echo "Python path: $(/opt/homebrew/bin/uv run python -c 'import sys; print(sys.executable)')" >&2
 
 # Run the server with uv
-exec /opt/homebrew/bin/uv run python server.py
+exec /opt/homebrew/bin/uv run python -m basedosdados_mcp.main

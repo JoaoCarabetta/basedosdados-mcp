@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+venv/
+*/venv/
+*/.venv/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+.settings/
+
+# OS generated files
+.DS_Store
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Specific to this project
+.claude/
+debug_endpoints.py
+basedosdados_backend_dump.txt
+uv.lock

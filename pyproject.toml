@@ -23,10 +23,10 @@ dev = [
 ]
 
 [project.scripts]
-basedosdados-mcp = "server:main"
+basedosdados-mcp = "basedosdados_mcp.main:main"
 
-[tool.setuptools]
-py-modules = ["server"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.black]
 line-length = 100
