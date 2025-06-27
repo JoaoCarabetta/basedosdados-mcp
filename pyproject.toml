@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Model Context Protocol server for Base dos Dados (Brazilian open data platform)"
 readme = "README.md"
 requires-python = ">=3.10,<=3.14"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "João Costa", email = "joao@example.com"}
 ]
@@ -19,7 +19,6 @@ keywords = ["mcp", "brazil", "data", "bigquery", "government", "open-data"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",

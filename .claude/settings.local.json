@@ -16,7 +16,9 @@
       "Bash(/opt/homebrew/bin/uv run:*)",
       "Bash(uv add:*)",
       "Bash(uv sync:*)",
-      "WebFetch(domain:smithery.ai)"
+      "WebFetch(domain:smithery.ai)",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)"
     ],
     "deny": []
   }

@@ -21,11 +21,8 @@ mcp:
   # Server transport - using stdio for Claude Desktop integration
   transport: stdio
   
-  # Command to run the server
-  command: python
-  args:
-    - -m
-    - basedosdados_mcp.main
+  # Command to run the server (simplified for container)
+  command: basedosdados-mcp
   
   # Environment variables (if needed)
   env: {}
