@@ -17,17 +17,24 @@ keywords:
 license: MIT
 
 # MCP Server Configuration
+version: 1
+
+# Runtime configuration for containerized deployment
+runtime: container
+
+# Build configuration
+build:
+  dockerfile: Dockerfile
+  dockerBuildPath: "."
+
+# Start command configuration
+start:
+  command: ["uv", "run", "python", "-m", "basedosdados_mcp.main"]
+  
+# MCP Server Configuration
 mcp:
   # Server transport - using stdio for Claude Desktop integration
   transport: stdio
-  
-  # Command to run the server (optimized with uv)
-  command: uv
-  args:
-    - run
-    - python
-    - -m
-    - basedosdados_mcp.main
   
   # Environment variables (if needed)
   env: {}
