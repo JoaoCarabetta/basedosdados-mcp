@@ -1,4 +1,5 @@
 # Base dos Dados MCP Server
+[![smithery badge](https://smithery.ai/badge/@JoaoCarabetta/basedosdados-mcp)](https://smithery.ai/server/@JoaoCarabetta/basedosdados-mcp)
 
 A Model Context Protocol (MCP) server that provides access to Base dos Dados, Brazil's open data platform.
 
@@ -46,7 +47,7 @@ To run the server locally and connect with Claude Desktop:
           ]
         },
         "basedosdados": {
-          "url": "http://127.0.0.1:8000"
+          "command": "/Users/joaoc/Documents/projects/basedosdados_mcp/run_server.sh"
         }
       }
     }
@@ -54,6 +55,13 @@ To run the server locally and connect with Claude Desktop:
     **Note**: This MCP server provides access to Base dos Dados metadata and tools. To query data directly from BigQuery, you will need a separate MCP server configured for BigQuery access.
 
 
+### Installing via Smithery
+
+To install basedosdados-mcp for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@JoaoCarabetta/basedosdados-mcp):
+
+```bash
+npx -y @smithery/cli install @JoaoCarabetta/basedosdados-mcp --client claude
+```
 
 ### Available Tools
 
