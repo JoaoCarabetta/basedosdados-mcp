@@ -31,8 +31,22 @@ To run the server locally and connect with Claude Desktop:
     ```json
     {
       "mcpServers": {
+        /// BigQuery MCP
+        "bigquery": {
+          "command": "npx",
+          "args": [
+            "-y",
+            "@ergut/mcp-bigquery-server",
+            "--project-id",
+            "<replcae with project id>",
+            "--location",
+            "<replace with location>",
+            "--key-file",
+            "<replace with service account path>"
+          ]
+        },
         "basedosdados": {
-          "url": "http://127.0.0.1:8000"
+          "command": "/Users/joaoc/Documents/projects/basedosdados_mcp/run_server.sh"
         }
       }
     }
