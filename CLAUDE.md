@@ -173,14 +173,62 @@ The server connects to Base dos Dados GraphQL API and provides enhanced access t
 
 ## Recent Changes
 
+### 2025-06-27: Smithery Publication Ready
+- **✅ Smithery Configuration**: Created `smithery.yaml` with complete server metadata and tool documentation
+- **✅ Docker Support**: Added optimized `Dockerfile` with proper Python environment and dependencies
+- **✅ Package Metadata**: Enhanced `pyproject.toml` with license, authors, classifiers, and project URLs
+- **✅ Build Optimization**: Added `.dockerignore` and resolved build dependencies
+- **✅ Publication Ready**: Successfully tested Docker build and container execution
+- **📦 Available on Smithery**: Ready for installation via Smithery registry
+
 ### 2025-06-26: Removed `generate_queries` Tool
 - Removed the `generate_queries` tool to simplify the interface
 - SQL generation functionality is now integrated into `get_table_details`
 - Users get sample SQL queries directly in table details responses
 - Maintains all functionality while reducing complexity
 
+## Smithery Integration
+
+### Installation via Smithery
+```bash
+# Install from Smithery registry
+smithery install basedosdados-mcp
+```
+
+### Claude Desktop Configuration (Smithery)
+```json
+{
+  "mcpServers": {
+    "basedosdados": {
+      "command": "basedosdados-mcp"
+    }
+  }
+}
+```
+
+### Docker Deployment
+- **Container Ready**: Optimized Dockerfile for containerized deployment
+- **Smithery Compatible**: Meets all Smithery registry requirements
+- **Lightweight**: Minimal Python 3.11-slim base with required dependencies only
+
+## Publication Status
+
+✅ **Ready for Publication**: All Smithery requirements met
+- Configuration schema defined
+- Docker containerization working
+- Package metadata complete
+- Tool documentation comprehensive
+- Build process validated
+
 ## Notes
 
 This server provides comprehensive, AI-optimized access to Base dos Dados through the MCP protocol. It's designed for efficient LLM interaction with Brazilian public data, offering single-call comprehensive information retrieval and context-aware guidance for data exploration and analysis.
 
-The implementation is based on analysis of the Base dos Dados backend Django application and is optimized for Claude Desktop integration with robust error handling and debugging capabilities.
+The implementation is based on analysis of the Base dos Dados backend Django application and is optimized for both Claude Desktop integration and Smithery registry distribution with robust error handling and debugging capabilities.
+
+**Smithery Features:**
+- Zero-configuration installation
+- Automatic dependency management
+- Containerized deployment support
+- Comprehensive tool documentation
+- Portuguese language intelligence

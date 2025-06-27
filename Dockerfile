@@ -6,13 +6,15 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Copy all necessary files
+# Install uv for fast dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# Copy source code and dependency files
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install dependencies and package
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e .
+# Create virtual environment and install all dependencies in one step using uv
+RUN uv sync --no-dev --no-cache
 
 # Set the entry point
-CMD ["python", "-m", "basedosdados_mcp.main"]
+CMD ["uv", "run", "python", "-m", "basedosdados_mcp.main"]
