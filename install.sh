@@ -245,6 +245,7 @@ main() {
         print_success "Claude Desktop configuration completed"
     else
         print_warning "Claude Desktop configuration failed - you may need to configure it manually"
+        # Don't exit here, continue with BigQuery configuration
     fi
     
     # Validate installation
@@ -252,16 +253,32 @@ main() {
     
     # Show installation info
     show_installation_info
+    
+    # Debug: Check if we're about to start BigQuery configuration
+    print_status "About to start BigQuery configuration section"
 
     echo " Base dos Dados MCP instalado com sucesso!"
     echo ""
 
+    # Debug: Check if we reached this point
+    print_status "Reached BigQuery configuration section"
+    
     # Pergunta sobre BigQuery
     echo "📊 Você gostaria de ativar a execução de queries no BigQuery?"
     echo "   Isso permite executar SQL diretamente nos dados da Base dos Dados."
-    read -p "   Ativar BigQuery? (y/N): " enable_bigquery
+    
+    # Check if we're in an interactive terminal
+    if [ -t 0 ]; then
+        read -p "   Ativar BigQuery? (Y/n): " enable_bigquery
+        # Default to "Y" if user just presses Enter
+        enable_bigquery=${enable_bigquery:-Y}
+    else
+        print_warning "Non-interactive environment detected. Skipping BigQuery configuration."
+        print_warning "To configure BigQuery manually, edit the Claude Desktop config file."
+        enable_bigquery="N"
+    fi
 
-    if [[ $enable_bigquery =~ ^[Yy]$ ]]; then
+    if [[ $enable_bigquery =~ ^[Yy]$ ]] || [[ -z "$enable_bigquery" ]]; then
         echo ""
         echo "🔧 Configuração do BigQuery:"
         
@@ -295,7 +312,7 @@ main() {
             # Usa jq para modificar o JSON de forma segura
             if command -v jq &> /dev/null; then
                 # Se jq está disponível, usa ele para modificar o JSON
-                jq --arg cmd "/Users/joaoc/.local/share/basedosdados-mcp/run_server.sh" \
+                jq --arg cmd "$HOME/.local/share/basedosdados-mcp/run_server.sh" \
                    --arg creds "$key_file" \
                    --arg proj "$project_id" \
                    --arg loc "$location" \
@@ -315,7 +332,7 @@ main() {
 {
   "mcpServers": {
     "basedosdados": {
-      "command": "/Users/joaoc/.local/share/basedosdados-mcp/run_server.sh",
+      "command": "$HOME/.local/share/basedosdados-mcp/run_server.sh",
       "env": {
         "GOOGLE_APPLICATION_CREDENTIALS": "$key_file",
         "BIGQUERY_PROJECT_ID": "$project_id",
@@ -340,7 +357,7 @@ EOF
             echo "   {"
             echo "     \"mcpServers\": {"
             echo "       \"basedosdados\": {"
-            echo "         \"command\": \"/Users/joaoc/.local/share/basedosdados-mcp/run_server.sh\","
+            echo "         \"command\": \"$HOME/.local/share/basedosdados-mcp/run_server.sh\","
             echo "         \"env\": {"
             echo "           \"GOOGLE_APPLICATION_CREDENTIALS\": \"$key_file\","
             echo "           \"BIGQUERY_PROJECT_ID\": \"$project_id\","
