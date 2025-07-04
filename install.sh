@@ -273,24 +273,54 @@ main() {
         # Default to "Y" if user just presses Enter
         enable_bigquery=${enable_bigquery:-Y}
     else
-        print_warning "Non-interactive environment detected. Skipping BigQuery configuration."
-        print_warning "To configure BigQuery manually, edit the Claude Desktop config file."
-        enable_bigquery="N"
+        print_warning "Non-interactive environment detected. Since BigQuery is now the default, we'll proceed with configuration."
+        print_warning "You can skip this by pressing Ctrl+C, or provide the configuration details."
+        enable_bigquery="Y"
     fi
 
     if [[ $enable_bigquery =~ ^[Yy]$ ]] || [[ -z "$enable_bigquery" ]]; then
         echo ""
         echo "🔧 Configuração do BigQuery:"
         
-        # Solicita project-id
-        read -p "   Project ID (ex: rj-escritorio-dev): " project_id
-        
-        # Solicita location
-        read -p "   Location (ex: US, us-central1) [US]: " location
-        location=${location:-US}
-        
-        # Solicita key-file
-        read -p "   Caminho para o arquivo de credenciais (ex: /path/to/service-account.json): " key_file
+        # Check if we're in an interactive terminal for BigQuery configuration
+        if [ -t 0 ]; then
+            # Solicita project-id
+            read -p "   Project ID (ex: rj-escritorio-dev): " project_id
+            
+            # Solicita location
+            read -p "   Location (ex: US, us-central1) [US]: " location
+            location=${location:-US}
+            
+            # Solicita key-file
+            read -p "   Caminho para o arquivo de credenciais (ex: /path/to/service-account.json): " key_file
+        else
+            # Non-interactive mode - provide instructions
+            echo "   ⚠️  Configuração não-interativa detectada."
+            echo "   Para configurar o BigQuery, você precisa:"
+            echo "   1. Ter um arquivo de credenciais do Google Cloud"
+            echo "   2. Saber o Project ID do seu projeto"
+            echo "   3. Editar manualmente o arquivo de configuração do Claude Desktop"
+            echo ""
+            echo "   Arquivo de configuração: $HOME/Library/Application Support/Claude/claude_desktop_config.json"
+            echo ""
+            echo "   Exemplo de configuração:"
+            echo "   {"
+            echo "     \"mcpServers\": {"
+            echo "       \"basedosdados\": {"
+            echo "         \"command\": \"$HOME/.local/share/basedosdados-mcp/run_server.sh\","
+            echo "         \"env\": {"
+            echo "           \"GOOGLE_APPLICATION_CREDENTIALS\": \"/path/to/service-account.json\","
+            echo "           \"BIGQUERY_PROJECT_ID\": \"your-project-id\","
+            echo "           \"BIGQUERY_LOCATION\": \"US\""
+            echo "         }"
+            echo "       }"
+            echo "     }"
+            echo "   }"
+            echo ""
+            echo "   ℹ️  BigQuery não foi configurado automaticamente."
+            echo "   Configure manualmente seguindo as instruções acima."
+            return 0
+        fi
         
         # Valida se o arquivo existe
         if [[ ! -f "$key_file" ]]; then
