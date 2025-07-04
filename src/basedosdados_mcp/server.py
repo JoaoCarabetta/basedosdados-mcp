@@ -2,6 +2,10 @@ from typing import Optional
 from mcp.server.fastmcp import FastMCP
 from basedosdados_mcp.graphql_client import make_graphql_request, DATASET_OVERVIEW_QUERY, TABLE_DETAILS_QUERY, ENHANCED_SEARCH_QUERY
 from basedosdados_mcp.utils import clean_graphql_id, preprocess_search_query, rank_search_results
+from basedosdados_mcp.bigquery_client import (
+    execute_query, execute_simple_query, get_table_schema, get_table_info,
+    validate_query, format_query_results, BigQueryClient
+)
 
 # =============================================================================
 # FastMCP Server Initialization
@@ -441,6 +445,49 @@ async def get_table_details(table_id: str) -> str:
     except Exception as e:
         return f"Error getting table details: {str(e)}"
 
+
+@mcp.tool()
+async def execute_bigquery_sql(
+    query: str,
+    max_results: int = 1000,
+    timeout_seconds: int = 300
+) -> str:
+    """
+    Execute a SQL query directly on Base dos Dados in BigQuery.
+    Only SELECT queries on basedosdados.* tables are allowed.
+    """
+    is_valid, error = validate_query(query)
+    if not is_valid:
+        return f"❌ Query rejected: {error}"
+
+    results = await execute_query(query, max_results=max_results, timeout_seconds=timeout_seconds)
+    return format_query_results(results)
+
+
+@mcp.tool()
+async def check_bigquery_status() -> str:
+    """
+    Check BigQuery authentication status and configuration.
+    Returns detailed information about the current setup.
+    """
+    client = BigQueryClient()
+    auth_status = client.get_auth_status()
+    
+    response = "**Status do BigQuery**\n\n"
+    
+    if auth_status["authenticated"]:
+        response += f"✅ **Autenticado:** Sim\n"
+        response += f"📊 **Project ID:** {auth_status['project_id']}\n"
+        response += f"🔧 **Fonte:** {auth_status.get('config_source', 'unknown')}\n"
+        response += f"\n💡 **Pronto para executar queries!**\n"
+    else:
+        response += f"❌ **Autenticado:** Não\n"
+        response += f"⚠️  **Erro:** {auth_status['error']}\n\n"
+        response += f"**📋 Instruções:**\n"
+        for instruction in auth_status['instructions']:
+            response += f"- {instruction}\n"
+    
+    return response
 
 
 # =============================================================================

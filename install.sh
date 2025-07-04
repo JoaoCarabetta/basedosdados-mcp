@@ -252,6 +252,58 @@ main() {
     
     # Show installation info
     show_installation_info
+
+    echo " Base dos Dados MCP instalado com sucesso!"
+    echo ""
+
+    # Pergunta sobre BigQuery
+    echo "📊 Você gostaria de ativar a execução de queries no BigQuery?"
+    echo "   Isso permite executar SQL diretamente nos dados da Base dos Dados."
+    read -p "   Ativar BigQuery? (y/N): " enable_bigquery
+
+    if [[ $enable_bigquery =~ ^[Yy]$ ]]; then
+        echo ""
+        echo "🔧 Configuração do BigQuery:"
+        
+        # Solicita project-id
+        read -p "   Project ID (ex: rj-escritorio-dev): " project_id
+        
+        # Solicita location
+        read -p "   Location (ex: US, us-central1): " location
+        
+        # Solicita key-file
+        read -p "   Caminho para o arquivo de credenciais (ex: /path/to/service-account.json): " key_file
+        
+        # Valida se o arquivo existe
+        if [[ ! -f "$key_file" ]]; then
+            echo "❌ Arquivo de credenciais não encontrado: $key_file"
+            echo "   Certifique-se de que o arquivo existe e tente novamente."
+            exit 1
+        fi
+        
+        # Cria arquivo de configuração
+        config_dir="$HOME/.config/basedosdados-mcp"
+        mkdir -p "$config_dir"
+        
+        cat > "$config_dir/bigquery_config.json" << EOF
+{
+    "project_id": "$project_id",
+    "location": "$location",
+    "key_file": "$key_file",
+    "enabled": true
+}
+EOF
+        
+        echo "✅ Configuração do BigQuery salva em: $config_dir/bigquery_config.json"
+        echo ""
+        echo " Para alterar essas configurações posteriormente, edite o arquivo acima."
+        
+    else
+        echo "ℹ️  BigQuery não foi ativado. Você pode ativar posteriormente editando a configuração."
+    fi
+
+    echo ""
+    echo "🎉 Instalação concluída!"
 }
 
 # Parse command line arguments
