@@ -299,7 +299,7 @@ main() {
         # Check if we're in an interactive terminal for BigQuery configuration
         if [ -t 0 ]; then
             # Solicita project-id
-            read -p "   Project ID (ex: rj-escritorio-dev): " project_id
+            read -p "   Project ID (ex: your-project-id): " project_id
             
             # Solicita location
             read -p "   Location (ex: US, us-central1) [US]: " location
