@@ -19,7 +19,8 @@
       "WebFetch(domain:smithery.ai)",
       "Bash(docker build:*)",
       "Bash(docker run:*)",
-      "Bash(time docker build:*)"
+      "Bash(time docker build:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }

@@ -1,2 +1,0 @@
-[console_scripts]
-basedosdados-mcp = basedosdados_mcp.main:main
