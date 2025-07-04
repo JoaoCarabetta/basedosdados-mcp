@@ -21,8 +21,9 @@ export BIGQUERY_LOCATION="${BIGQUERY_LOCATION:-US}"
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Ensure we're in the project directory
-cd "$SCRIPT_DIR"
+# Navigate to the actual project directory where .venv is located
+PROJECT_DIR="/Users/joaoc/Documents/projects/basedosdados_mcp"
+cd "$PROJECT_DIR"
 
 # Check if uv is available
 if ! command -v uv &> /dev/null; then
@@ -37,10 +38,13 @@ if [ ! -d ".venv" ]; then
     exit 1
 fi
 
+# Ativa o ambiente virtual
+source .venv/bin/activate
+
 # Set development environment variables for local testing
 export ENVIRONMENT="development"
 export LOG_LEVEL="INFO"
-export PYTHONPATH="$SCRIPT_DIR/src"
+export PYTHONPATH="$PROJECT_DIR/src"
 
 # Log configuration status
 echo "🚀 Starting Base dos Dados MCP Server..." >&2
@@ -61,7 +65,7 @@ echo "" >&2
 
 # Log startup for debugging (to stderr so it doesn't interfere with MCP protocol)
 echo "Starting Base dos Dados MCP Server..." >&2
-echo "Working directory: $SCRIPT_DIR" >&2
+echo "Working directory: $PROJECT_DIR" >&2
 echo "Environment: $ENVIRONMENT" >&2
 echo "Log level: $LOG_LEVEL" >&2
 

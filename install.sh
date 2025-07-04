@@ -104,6 +104,20 @@ install_mcp_package() {
     mkdir -p "$INSTALL_DIR"
     cp run_server.sh "$INSTALL_DIR/"
     chmod +x "$INSTALL_DIR/run_server.sh"
+
+    # Copia o diretório src para o diretório de instalação
+    cp -r src "$INSTALL_DIR/"
+
+    # Copia o pyproject.toml para o diretório de instalação
+    cp pyproject.toml "$INSTALL_DIR/"
+
+    # Crie o venv e instale dependências diretamente no diretório de instalação
+    cd "$INSTALL_DIR"
+    uv sync
+    uv pip install -e .
+
+    # Volta para o diretório anterior
+    cd -
     
     # Clean up temporary directory
     cd /

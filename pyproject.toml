@@ -33,7 +33,7 @@ dependencies = [
     "httpx>=0.25.0",
     "fastmcp>=2.10.1",
     "google-cloud-bigquery>=3.0.0",
-    "pandas>=2.0.0",
+    "db-dtypes>=1.0.0",
 ]
 
 

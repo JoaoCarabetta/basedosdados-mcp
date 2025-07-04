@@ -13,7 +13,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from google.cloud import bigquery
 from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
-import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -164,16 +163,42 @@ async def execute_query(
         # Wait for completion with timeout
         query_job.result(timeout=timeout_seconds)
         
-        # Get results as DataFrame
-        df = query_job.to_dataframe(max_results=max_results)
+        # Get results as native BigQuery rows
+        results = []
+        columns = []
         
-        # Convert to dict for JSON serialization
-        results = df.to_dict('records')
+        # Fetch results and get column names from first row
+        try:
+            # Get results iterator
+            results_iterator = query_job.result(max_results=max_results)
+            
+            # Process each row
+            for row in results_iterator:
+                if not columns:  # Get column names from first row
+                    columns = list(row.keys())
+                results.append(dict(row.items()))
+                
+        except Exception as e:
+            logger.warning(f"Error fetching results: {e}")
+            # If no results, try to get columns from the job's destination table schema
+            try:
+                if hasattr(query_job, 'destination') and query_job.destination:
+                    table = client.client.get_table(query_job.destination)
+                    columns = [field.name for field in table.schema]
+            except Exception as schema_error:
+                logger.warning(f"Error getting schema: {schema_error}")
+                columns = []
         
-        # Get query metadata
-        total_rows = query_job.total_rows
-        total_bytes_processed = query_job.total_bytes_processed
-        slot_millis = query_job.slot_millis
+        # Get query metadata (handle cases where attributes might not exist)
+        try:
+            total_rows = getattr(query_job, 'total_rows', 0)
+            total_bytes_processed = getattr(query_job, 'total_bytes_processed', 0)
+            slot_millis = getattr(query_job, 'slot_millis', 0)
+        except Exception as e:
+            logger.warning(f"Error getting query metadata: {e}")
+            total_rows = len(results)
+            total_bytes_processed = 0
+            slot_millis = 0
         
         return {
             "success": True,
@@ -183,7 +208,7 @@ async def execute_query(
             "total_bytes_processed": total_bytes_processed,
             "slot_millis": slot_millis,
             "query": query,
-            "columns": list(df.columns) if not df.empty else []
+            "columns": columns
         }
         
     except Exception as e:
