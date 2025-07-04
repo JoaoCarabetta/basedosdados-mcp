@@ -65,18 +65,7 @@ docker push joaoc/basedosdados-mcp:0.1.0
 docker push joaoc/basedosdados-mcp:latest
 ```
 
-### Smithery.ai
 
-```bash
-# 1. Instalar CLI
-npm install -g @smithery/cli
-
-# 2. Login
-smithery login
-
-# 3. Publicar
-smithery publish
-```
 
 ## 🔍 Verificação Pós-Publicação
 

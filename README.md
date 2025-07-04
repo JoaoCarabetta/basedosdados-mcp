@@ -1,6 +1,6 @@
 # Base dos Dados MCP Server
 
-[![Smithery](https://smithery.ai/badge/basedosdados-mcp)](https://smithery.ai/server/basedosdados-mcp)
+
 
 A Model Context Protocol (MCP) server that provides AI-optimized access to Base dos Dados, Brazil's largest open data platform. Features intelligent search, Portuguese language support, and comprehensive dataset exploration capabilities.
 
@@ -15,17 +15,7 @@ A Model Context Protocol (MCP) server that provides AI-optimized access to Base 
 
 ## 🚀 Installation
 
-### Option 1: Via Smithery (Recommended)
-
-Install via [Smithery](https://smithery.ai/) for automatic Claude Desktop configuration:
-
-```bash
-npx -y @smithery/cli install basedosdados-mcp --client claude
-```
-
-This automatically configures Claude Desktop - no manual setup needed!
-
-### Option 2: Via PyPI
+### Option 1: Via PyPI
 
 Install from [PyPI](https://pypi.org/project/basedosdados-mcp/):
 
@@ -79,20 +69,6 @@ uv add basedosdados-mcp
      }
    }
    ```
-
-### Option 4: Docker
-
-```bash
-# Pull from Docker Hub
-docker pull joaocarabetta/basedosdados-mcp
-
-# Or build locally
-docker build -t basedosdados-mcp .
-
-# Run the container
-docker run --rm basedosdados-mcp
-```
-
 
 
 ## 🛠️ Available Tools

@@ -31,7 +31,7 @@ Requires-Dist: ruff>=0.1.0; extra == "dev"
 
 # Base dos Dados MCP Server
 
-[![Smithery](https://smithery.ai/badge/basedosdados-mcp)](https://smithery.ai/server/basedosdados-mcp)
+
 
 A Model Context Protocol (MCP) server that provides AI-optimized access to Base dos Dados, Brazil's largest open data platform. Features intelligent search, Portuguese language support, and comprehensive dataset exploration capabilities.
 
@@ -46,9 +46,9 @@ A Model Context Protocol (MCP) server that provides AI-optimized access to Base 
 
 ## 🚀 Installation
 
-### Via PyPI (Recommended)
+### Option 1: Via PyPI
 
-Install directly from PyPI:
+Install from [PyPI](https://pypi.org/project/basedosdados-mcp/):
 
 ```bash
 # Install with pip
@@ -58,7 +58,7 @@ pip install basedosdados-mcp
 uv add basedosdados-mcp
 ```
 
-**Claude Desktop Configuration:**
+**Manual Claude Desktop Configuration:**
 ```json
 {
   "mcpServers": {
@@ -69,21 +69,12 @@ uv add basedosdados-mcp
 }
 ```
 
-### Via Smithery (Alternative)
-
-Install from [Smithery MCP Registry](https://smithery.ai/):
-
-```bash
-# Using Smithery CLI
-npx @smithery/cli install basedosdados-mcp
-```
-
-### Manual Installation (Development)
+### Option 3: Manual Installation (Development)
 
 1. **Clone and install**:
    ```bash
-   git clone https://github.com/joaoc/basedosdados_mcp
-   cd basedosdados_mcp
+   git clone https://github.com/JoaoCarabetta/basedosdados-mcp
+   cd basedosdados-mcp
    uv sync
    ```
 
@@ -104,25 +95,11 @@ npx @smithery/cli install basedosdados-mcp
    {
      "mcpServers": {
        "basedosdados": {
-         "command": "/path/to/basedosdados_mcp/run_server.sh"
+         "command": "/path/to/basedosdados-mcp/run_server.sh"
        }
      }
    }
    ```
-
-### Docker
-
-```bash
-# Pull from Docker Hub
-docker pull joaoc/basedosdados-mcp
-
-# Or build locally
-docker build -t basedosdados-mcp .
-
-# Run the container
-docker run --rm basedosdados-mcp
-```
-
 
 
 ## 🛠️ Available Tools
@@ -178,8 +155,8 @@ get_table_details(table_id="TableNode:municipio_id")
 ### Setup
 ```bash
 # Clone and install
-git clone https://github.com/joaoc/basedosdados_mcp
-cd basedosdados_mcp
+git clone https://github.com/JoaoCarabetta/basedosdados-mcp
+cd basedosdados-mcp
 uv sync
 ```
 
@@ -193,7 +170,7 @@ Use the wrapper script for easy Claude Desktop integration:
 {
   "mcpServers": {
     "basedosdados": {
-      "command": "/path/to/basedosdados_mcp/run_server.sh"
+      "command": "/path/to/basedosdados-mcp/run_server.sh"
     }
   }
 }
@@ -207,7 +184,7 @@ Use the wrapper script for easy Claude Desktop integration:
     "basedosdados": {
       "command": "uv",
       "args": ["run", "basedosdados-mcp-dev"],
-      "cwd": "/path/to/basedosdados_mcp"
+      "cwd": "/path/to/basedosdados-mcp"
     }
   }
 }

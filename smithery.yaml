@@ -1,25 +1,8 @@
 # Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
 
-runtime: "container"
-
 startCommand:
-  type: "stdio"
-  configSchema:
-    type: "object"
-    properties:
-      graphql_endpoint:
-        type: "string"
-        description: "Base dos Dados GraphQL API endpoint"
-        default: "https://backend.basedosdados.org/graphql"
-      request_timeout:
-        type: "number"
-        description: "Request timeout in seconds"
-        default: 30
-        minimum: 1
-        maximum: 300
-      max_results:
-        type: "number"
-        description: "Maximum number of search results to return"
-        default: 50
-        minimum: 1
-        maximum: 100
+  type: stdio
+  commandFunction:
+    # A function that produces the CLI command to start the MCP on stdio.
+    |-
+    (config) => ({ command: 'basedosdados-mcp'})`
