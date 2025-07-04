@@ -1,94 +1,25 @@
-server:
-  name: "basedosdados-mcp"
-  description: "Model Context Protocol server for Base dos Dados - Brazil's largest open data platform"
-  version: "0.1.0"
-  
-  # Author information
-  author:
-    name: "João Carabetta"
-    email: "joao.carabetta@gmail.com"
-    url: "https://github.com/JoaoCarabetta/basedosdados-mcp"
-  
-  # Repository and documentation
-  repository: "https://github.com/JoaoCarabetta/basedosdados-mcp"
-  homepage: "https://github.com/JoaoCarabetta/basedosdados-mcp"
-  documentation: "https://github.com/JoaoCarabetta/basedosdados-mcp#readme"
-  
-  # License and keywords
-  license: "MIT"
-  keywords:
-    - "mcp"
-    - "brazil"
-    - "data"
-    - "bigquery"
-    - "government"
-    - "open-data"
-    - "brazilian-data"
-    - "ibge"
-    - "census"
-    - "demographics"
-  
-  # Server configuration
-  runtime: "python"
-  command: "basedosdados-mcp"
-  
-  # Environment requirements
-  requirements:
-    python: ">=3.10,<=3.14"
-    
-  # Installation via PyPI
-  install:
-    pip: "basedosdados-mcp"
-    
-  # Tools provided by the server
-  tools:
-    - name: "search_datasets"
-      description: "Smart search for Brazilian datasets with Portuguese accent normalization and acronym prioritization"
-      examples:
-        - "search_datasets(query='população brasileira', limit=10)"
-        - "search_datasets(query='IBGE demografico')"
-        - "search_datasets(query='RAIS emprego')"
-    
-    - name: "get_dataset_overview"
-      description: "Get complete dataset overview including all tables with columns, descriptions, and ready-to-use BigQuery table references"
-      examples:
-        - "get_dataset_overview(dataset_id='DatasetNode:abc123')"
-    
-    - name: "get_table_details"
-      description: "Get comprehensive table information with all columns, types, descriptions, BigQuery access instructions and sample SQL queries"
-      examples:
-        - "get_table_details(table_id='TableNode:xyz789')"
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
 
-  # Capabilities and features
-  features:
-    - "Portuguese language support with accent normalization"
-    - "AI-optimized single-call comprehensive data retrieval"
-    - "BigQuery integration with ready-to-use SQL generation"
-    - "Brazilian data focus (IBGE, RAIS, TSE, INEP, etc.)"
-    - "Intelligent ranking and acronym prioritization"
-    - "Comprehensive dataset exploration capabilities"
-  
-  # Data sources covered
-  data_sources:
-    - "IBGE (Brazilian Institute of Geography and Statistics)"
-    - "RAIS (Annual Social Information Report)"
-    - "TSE (Superior Electoral Court)"
-    - "INEP (National Institute of Educational Studies)"
-    - "Central Bank of Brazil"
-    - "Ministry data and regional statistics"
-  
-  # Categories for discovery
-  categories:
-    - "data-access"
-    - "brazil"
-    - "government-data"
-    - "bigquery"
-    - "demographics"
-    - "economics"
-    - "education"
-  
-  # Claude Desktop configuration example
-  claude_desktop_config:
-    mcpServers:
-      basedosdados:
-        command: "basedosdados-mcp"
+runtime: "container"
+
+startCommand:
+  type: "stdio"
+  configSchema:
+    type: "object"
+    properties:
+      graphql_endpoint:
+        type: "string"
+        description: "Base dos Dados GraphQL API endpoint"
+        default: "https://backend.basedosdados.org/graphql"
+      request_timeout:
+        type: "number"
+        description: "Request timeout in seconds"
+        default: 30
+        minimum: 1
+        maximum: 300
+      max_results:
+        type: "number"
+        description: "Maximum number of search results to return"
+        default: 50
+        minimum: 1
+        maximum: 100
