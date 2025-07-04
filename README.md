@@ -49,12 +49,17 @@ Add to your `claude_desktop_config.json`:
 
 2. **Run the server**:
    ```bash
+   # Production mode
    uv run basedosdados-mcp
-   # Or using the wrapper script
-   bash run_server.sh
+   
+   # Development mode (with debug logging)
+   uv run basedosdados-mcp-dev
+   
+   # Using the wrapper script
+   ./run_server.sh
    ```
 
-3. **Configure Claude Desktop**:
+3. **Configure Claude Desktop** (see detailed instructions below):
    ```json
    {
      "mcpServers": {
@@ -74,16 +79,9 @@ Add to your `claude_desktop_config.json`:
 | Tool | Description | Example |
 |------|-------------|---------|
 | **`search_datasets`** | Smart search with Portuguese accent normalization | `search_datasets(query="população", limit=10)` |
-| **`get_dataset_overview`** | Complete dataset view with all tables | `get_dataset_overview(dataset_id="br_ibge_populacao")` |
-| **`get_table_details`** | Comprehensive table info with SQL samples | `get_table_details(dataset_id="br_ibge_populacao", table_id="municipio")` |
-| **`explore_data`** | Multi-level data exploration | `explore_data(query="educação", mode="detailed")` |
+| **`get_dataset_overview`** | Complete dataset view with all tables | `get_dataset_overview(dataset_id="DatasetNode:abc123")` |
+| **`get_table_details`** | Comprehensive table info with SQL samples | `get_table_details(table_id="TableNode:xyz789")` |
 
-### Resources
-
-| Resource | Description |
-|----------|-------------|
-| **`basedosdados://help`** | AI-optimized usage guidance |
-| **`basedosdados://datasets`** | Dataset discovery examples |
 
 ## 💡 Usage Examples
 
@@ -96,26 +94,11 @@ search_datasets(query="IBGE demografico")
 
 ### Explore Dataset Structure
 ```python
-# Get complete overview of a dataset
-get_dataset_overview(dataset_id="br_ibge_populacao")
+# Get complete overview of a dataset (use dataset ID from search results)
+get_dataset_overview(dataset_id="DatasetNode:br_ibge_populacao_id")
 
-# Get detailed table information with sample SQL
-get_table_details(
-    dataset_id="br_ibge_populacao", 
-    table_id="municipio"
-)
-```
-
-### Multi-level Data Exploration
-```python
-# Quick overview
-explore_data(query="RAIS employment", mode="overview")
-
-# Detailed exploration
-explore_data(query="Brazilian education", mode="detailed")
-
-# Find related datasets
-explore_data(query="census data", mode="related")
+# Get detailed table information with sample SQL (use table ID from overview)
+get_table_details(table_id="TableNode:municipio_id")
 ```
 
 ## 🧠 Key Features
@@ -137,7 +120,7 @@ explore_data(query="census data", mode="related")
 - **Economic Indicators**: Central Bank, ministries, regional data
 - **Health & Demographics**: SUS, population statistics, vital records
 
-## 🔧 Development
+## 🔧 Local Development & Testing
 
 ### Setup
 ```bash
@@ -147,19 +130,70 @@ cd basedosdados_mcp
 uv sync
 ```
 
-### Testing
+### Testing with Claude Desktop
+
+#### 1. **Quick Test** (Recommended)
+Use the wrapper script for easy Claude Desktop integration:
+
+```json
+// Add to your claude_desktop_config.json
+{
+  "mcpServers": {
+    "basedosdados": {
+      "command": "/path/to/basedosdados_mcp/run_server.sh"
+    }
+  }
+}
+```
+
+#### 2. **Direct Command** (Alternative)
+```json
+// Add to your claude_desktop_config.json
+{
+  "mcpServers": {
+    "basedosdados": {
+      "command": "uv",
+      "args": ["run", "basedosdados-mcp-dev"],
+      "cwd": "/path/to/basedosdados_mcp"
+    }
+  }
+}
+```
+
+#### 3. **Testing the Server**
 ```bash
-# Run MCP server
+# Test server startup (development mode)
+uv run basedosdados-mcp-dev
+
+# Test server startup (production mode)  
 uv run basedosdados-mcp
 
-# Test all functionality
-uv run test_mcp_fixed.py
+# Test with wrapper script
+./run_server.sh
+```
 
-# Test BigQuery permissions
-uv run test_bigquery_permissions.py
+### Troubleshooting Claude Desktop Integration
 
-# Debug API endpoints
-uv run scripts/debug_endpoints.py
+**Common Issues:**
+- **Server won't start**: Check that `uv sync` completed successfully
+- **Tools not available**: Verify the `cwd` path in your config is correct
+- **Connection errors**: Check Claude Desktop logs at `~/Library/Logs/Claude/`
+
+**Debug Logging:**
+The wrapper script (`run_server.sh`) includes debug output to stderr. Check Claude Desktop logs for startup messages.
+
+### Manual Testing
+```bash
+# Test tool functionality directly
+uv run python -c "
+import asyncio
+from src.basedosdados_mcp.server import search_datasets
+async def test():
+    result = await search_datasets('ibge', limit=2)
+    print('✅ Search works!')
+    print(result[:200] + '...')
+asyncio.run(test())
+"
 ```
 
 ### Docker Support

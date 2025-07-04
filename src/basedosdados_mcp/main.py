@@ -13,8 +13,8 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from mcp.server.fastmcp import FastMCP
-# Import the server module to ensure tools are registered
-from . import server  # noqa: F401
+# Import the configured server with tools already registered
+from .server import mcp as configured_server
 
 
 # =============================================================================
@@ -83,22 +83,11 @@ def create_production_server() -> FastMCP:
     Returns:
         FastMCP: Configured server instance ready for production deployment
     """
-    # Create server with production configuration
-    server = FastMCP(
-        name="Base dos Dados MCP",
-        dependencies=[
-            "httpx>=0.25.0",
-            "pydantic>=2.0.0,<2.11",
-            "google-cloud-bigquery>=3.0.0",
-        ],
-        lifespan=app_lifespan
-    )
+    # Use the server instance from server.py where tools are already registered
+    # Add production configuration
+    configured_server._lifespan = app_lifespan
     
-    # Register tools from server module
-    # Note: Tools are already registered via decorators in server.py
-    # This ensures they're available when the server module is imported
-    
-    return server
+    return configured_server
 
 
 # =============================================================================
@@ -113,9 +102,8 @@ def main() -> None:
     or when installed via pip and run as `basedosdados-mcp`.
     """
     try:
-        # Create and run the production server
-        server = create_production_server()
-        server.run()
+        # Use the configured server directly instead of creating a new one
+        configured_server.run()
     except KeyboardInterrupt:
         logging.getLogger("basedosdados_mcp").info("Server interrupted by user")
         sys.exit(0)
@@ -134,7 +122,8 @@ def dev_main() -> None:
     os.environ.setdefault("ENVIRONMENT", "development")
     os.environ.setdefault("LOG_LEVEL", "DEBUG")
     
-    main()
+    # Use the configured server directly
+    configured_server.run()
 
 
 if __name__ == "__main__":
