@@ -1,6 +1,31 @@
-# Base dos Dados MCP Server
+# Base dos Dados MCP
 
 A Model Context Protocol (MCP) server that provides AI-optimized access to Base dos Dados, Brazil's largest open data platform.
+
+## 💡 Create Reports with Real Brazilian Datasets with Claude Desktop
+
+#### Ask it to replicate a news article:
+
+```
+User:
+https://www.gov.br/secom/pt-br/assuntos/noticias/2025/05/no-melhor-abril-do-novo-caged-brasil-gera-257-mil-vagas-com-carteira-assinada
+
+consegue replicar a materia e checar os numeros?
+
+Claude: https://claude.ai/public/artifacts/15d7f5c5-f017-4a96-9380-a93e535001fd
+```
+
+#### Or a research question
+
+```
+User:
+https://claude.ai/share/f8dbbe5b-1c34-4804-9462-1bfb9008558d
+
+Claude: https://claude.ai/share/f8dbbe5b-1c34-4804-9462-1bfb9008558d
+```
+
+#### 
+
 
 ## ✨ Features
 
@@ -11,9 +36,16 @@ A Model Context Protocol (MCP) server that provides AI-optimized access to Base 
 
 ## 🚀 Quick Install to Claude Desktop
 
+Just run this line in your terminal
 ```bash
 bash -i <(curl -LsSf https://raw.githubusercontent.com/JoaoCarabetta/basedosdados-mcp/refs/heads/main/install.sh)
 ```
+
+Add your BigQuery project_id, location and service account.
+
+Restart Claude Desktop and you are good to go!
+
+⚠️ I just tested it in my Mac M-Series
 
 ## 🛠️ Tools
 
@@ -25,21 +57,11 @@ bash -i <(curl -LsSf https://raw.githubusercontent.com/JoaoCarabetta/basedosdado
 | `execute_bigquery_sql` | Execute SQL queries directly |
 | `check_bigquery_status` | Check BigQuery authentication |
 
-## 💡 Usage
 
-```python
-# Search for data
-search_datasets(query="população brasileira")
 
-# Explore dataset
-get_dataset_overview(dataset_id="DatasetNode:br_ibge_populacao_id")
 
-# Get table details
-get_table_details(table_id="TableNode:municipio_id")
 
-# Execute SQL
-execute_bigquery_sql(query="SELECT * FROM basedosdados.br_ibge_populacao.municipio LIMIT 10")
-```
+
 
 ## 🔧 Development
 
