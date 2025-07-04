@@ -17,5 +17,14 @@ COPY src/ ./src/
 # Create virtual environment and install all dependencies in one step using uv
 RUN uv sync --no-dev --no-cache
 
-# Ensure the entry point script is executable and handles stdio properly
-ENTRYPOINT ["uv", "run", "python", "-m", "basedosdados_mcp.main"]
+# Add health check for production deployments
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)"
+
+# Set production environment variables
+ENV ENVIRONMENT=production
+ENV LOG_LEVEL=INFO
+ENV PYTHONPATH=/app/src
+
+# Use the correct module path and production entry point
+ENTRYPOINT ["uv", "run", "basedosdados-mcp"]

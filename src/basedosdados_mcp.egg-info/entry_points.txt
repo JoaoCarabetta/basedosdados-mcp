@@ -1,0 +1,3 @@
+[console_scripts]
+basedosdados-mcp = basedosdados_mcp.main:main
+basedosdados-mcp-dev = basedosdados_mcp.main:dev_main

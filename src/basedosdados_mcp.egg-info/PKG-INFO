@@ -1,0 +1,228 @@
+Metadata-Version: 2.4
+Name: basedosdados-mcp
+Version: 0.1.0
+Summary: Model Context Protocol server for Base dos Dados (Brazilian open data platform)
+Author-email: João Costa <joao@example.com>
+Maintainer-email: João Costa <joao@example.com>
+License-Expression: MIT
+Project-URL: Homepage, https://github.com/joaoc/basedosdados_mcp
+Project-URL: Documentation, https://github.com/joaoc/basedosdados_mcp#readme
+Project-URL: Repository, https://github.com/joaoc/basedosdados_mcp
+Project-URL: Bug Tracker, https://github.com/joaoc/basedosdados_mcp/issues
+Keywords: mcp,brazil,data,bigquery,government,open-data
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Programming Language :: Python :: 3.14
+Classifier: Topic :: Scientific/Engineering :: Information Analysis
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Requires-Python: <=3.14,>=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: mcp[cli]>=1.0.0
+Requires-Dist: httpx>=0.25.0
+Requires-Dist: pydantic<2.11,>=2.0.0
+Requires-Dist: google-cloud-bigquery>=3.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: black>=23.0.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"
+Provides-Extra: production
+Requires-Dist: uvicorn[standard]>=0.20.0; extra == "production"
+Requires-Dist: gunicorn>=20.0.0; extra == "production"
+
+# Base dos Dados MCP Server
+
+[![Smithery](https://smithery.ai/badge/basedosdados-mcp)](https://smithery.ai/server/basedosdados-mcp)
+
+A Model Context Protocol (MCP) server that provides AI-optimized access to Base dos Dados, Brazil's largest open data platform. Features intelligent search, Portuguese language support, and comprehensive dataset exploration capabilities.
+
+## ✨ Features
+
+- **🔍 Smart Search**: Portuguese language support with accent normalization
+- **🤖 AI-Optimized**: Single-call comprehensive data retrieval
+- **📊 BigQuery Integration**: Ready-to-use SQL generation with table references  
+- **🇧🇷 Brazilian Data Focus**: Specialized for Brazilian public datasets (IBGE, RAIS, TSE, etc.)
+- **⚡ Efficient**: Intelligent ranking and acronym prioritization
+- **📖 Comprehensive**: Dataset overviews, table details, and usage guidance
+
+## 🚀 Installation
+
+### Via Smithery (Recommended)
+
+Install directly from [Smithery](https://smithery.ai/server/basedosdados-mcp):
+
+```bash
+# Using Smithery CLI
+smithery install basedosdados-mcp
+
+# Or add to your Claude Desktop configuration
+```
+
+### Claude Desktop Configuration
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "basedosdados": {
+      "command": "basedosdados-mcp"
+    }
+  }
+}
+```
+
+### Manual Installation
+
+1. **Install dependencies**:
+   ```bash
+   uv sync
+   ```
+
+2. **Run the server**:
+   ```bash
+   uv run basedosdados-mcp
+   # Or using the wrapper script
+   bash run_server.sh
+   ```
+
+3. **Configure Claude Desktop**:
+   ```json
+   {
+     "mcpServers": {
+       "basedosdados": {
+         "command": "/path/to/basedosdados_mcp/run_server.sh"
+       }
+     }
+   }
+   ```
+
+
+
+## 🛠️ Available Tools
+
+### Core Tools
+
+| Tool | Description | Example |
+|------|-------------|---------|
+| **`search_datasets`** | Smart search with Portuguese accent normalization | `search_datasets(query="população", limit=10)` |
+| **`get_dataset_overview`** | Complete dataset view with all tables | `get_dataset_overview(dataset_id="br_ibge_populacao")` |
+| **`get_table_details`** | Comprehensive table info with SQL samples | `get_table_details(dataset_id="br_ibge_populacao", table_id="municipio")` |
+| **`explore_data`** | Multi-level data exploration | `explore_data(query="educação", mode="detailed")` |
+
+### Resources
+
+| Resource | Description |
+|----------|-------------|
+| **`basedosdados://help`** | AI-optimized usage guidance |
+| **`basedosdados://datasets`** | Dataset discovery examples |
+
+## 💡 Usage Examples
+
+### Search for Brazilian Demographics Data
+```python
+# Search with Portuguese (works with/without accents)
+search_datasets(query="população brasileira")
+search_datasets(query="IBGE demografico")
+```
+
+### Explore Dataset Structure
+```python
+# Get complete overview of a dataset
+get_dataset_overview(dataset_id="br_ibge_populacao")
+
+# Get detailed table information with sample SQL
+get_table_details(
+    dataset_id="br_ibge_populacao", 
+    table_id="municipio"
+)
+```
+
+### Multi-level Data Exploration
+```python
+# Quick overview
+explore_data(query="RAIS employment", mode="overview")
+
+# Detailed exploration
+explore_data(query="Brazilian education", mode="detailed")
+
+# Find related datasets
+explore_data(query="census data", mode="related")
+```
+
+## 🧠 Key Features
+
+### Portuguese Language Intelligence
+- **Accent Normalization**: `populacao` → `população`, `educacao` → `educação`
+- **Acronym Recognition**: IBGE, RAIS, TSE, INEP get priority ranking
+- **Smart Fallbacks**: Multiple search strategies for robust results
+
+### AI-Optimized Design
+- **Single-Call Efficiency**: Comprehensive information without multiple API calls
+- **Structured Responses**: Consistent formatting for LLM consumption
+- **Ready-to-Use SQL**: Direct BigQuery paths like `basedosdados.br_ibge_populacao.municipio`
+- **Context-Aware Guidance**: Next-step instructions included in responses
+
+### Brazilian Data Expertise
+- **Government Sources**: IBGE (Census), TSE (Elections), RAIS (Employment)
+- **Education Data**: INEP, higher education, school census
+- **Economic Indicators**: Central Bank, ministries, regional data
+- **Health & Demographics**: SUS, population statistics, vital records
+
+## 🔧 Development
+
+### Setup
+```bash
+# Clone and install
+git clone https://github.com/joaoc/basedosdados_mcp
+cd basedosdados_mcp
+uv sync
+```
+
+### Testing
+```bash
+# Run MCP server
+uv run basedosdados-mcp
+
+# Test all functionality
+uv run test_mcp_fixed.py
+
+# Test BigQuery permissions
+uv run test_bigquery_permissions.py
+
+# Debug API endpoints
+uv run scripts/debug_endpoints.py
+```
+
+### Docker Support
+```bash
+# Build container
+docker build -t basedosdados-mcp .
+
+# Run container
+docker run --rm basedosdados-mcp
+```
+
+## 📚 About Base dos Dados
+
+[Base dos Dados](https://basedosdados.org) is Brazil's largest open data platform, providing standardized access to Brazilian public datasets through BigQuery. This MCP server bridges the gap between AI assistants and Brazil's rich public data ecosystem.
+
+### Data Coverage
+- **Demographics**: Population, census, vital statistics
+- **Economics**: GDP, employment, trade, inflation
+- **Education**: School performance, enrollment, infrastructure  
+- **Politics**: Elections, candidates, campaign finance
+- **Health**: Hospital data, epidemiology, healthcare infrastructure
+- **Environment**: Climate, deforestation, water resources
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## 🤝 Contributing
+
+Contributions welcome! Please see our [contributing guidelines](CONTRIBUTING.md) for details.

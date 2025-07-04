@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+src/basedosdados_mcp/config.py
+src/basedosdados_mcp/graphql_client.py
+src/basedosdados_mcp/main.py
+src/basedosdados_mcp/server.py
+src/basedosdados_mcp/utils.py
+src/basedosdados_mcp.egg-info/PKG-INFO
+src/basedosdados_mcp.egg-info/SOURCES.txt
+src/basedosdados_mcp.egg-info/dependency_links.txt
+src/basedosdados_mcp.egg-info/entry_points.txt
+src/basedosdados_mcp.egg-info/requires.txt
+src/basedosdados_mcp.egg-info/top_level.txt
