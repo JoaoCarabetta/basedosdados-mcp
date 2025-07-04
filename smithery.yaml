@@ -6,12 +6,12 @@ server:
   # Author information
   author:
     name: "João Carabetta"
-    email: "joao.carabetta@egmail.com"
+    email: "joao.carabetta@gmail.com"
     url: "https://github.com/JoaoCarabetta/basedosdados-mcp"
   
   # Repository and documentation
   repository: "https://github.com/JoaoCarabetta/basedosdados-mcp"
-  homepage: https://github.com/JoaoCarabetta/basedosdados-mcp"
+  homepage: "https://github.com/JoaoCarabetta/basedosdados-mcp"
   documentation: "https://github.com/JoaoCarabetta/basedosdados-mcp#readme"
   
   # License and keywords
