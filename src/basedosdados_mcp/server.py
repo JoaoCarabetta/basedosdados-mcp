@@ -1,7 +1,10 @@
 from typing import Optional
 from mcp.server.fastmcp import FastMCP
 from basedosdados_mcp.graphql_client import make_graphql_request, DATASET_OVERVIEW_QUERY, TABLE_DETAILS_QUERY, ENHANCED_SEARCH_QUERY
-from basedosdados_mcp.utils import clean_graphql_id, preprocess_search_query, rank_search_results
+from basedosdados_mcp.utils import (
+    clean_graphql_id, preprocess_search_query, rank_search_results,
+    format_bigquery_reference, format_bigquery_reference_with_highlighting, format_sql_query_with_reference
+)
 from basedosdados_mcp.bigquery_client import (
     execute_query, execute_simple_query, get_table_schema, get_table_info,
     validate_query, format_query_results, BigQueryClient
@@ -214,7 +217,7 @@ async def search_datasets(
                 if tables:
                     dataset_slug = node.get("slug", "")
                     first_table_slug = tables[0]["node"].get("slug", "")
-                    sample_bigquery_ref = f"basedosdados.{dataset_slug}.{first_table_slug}"
+                    sample_bigquery_ref = format_bigquery_reference(dataset_slug, first_table_slug)
                 
                 datasets.append({
                     "id": node["id"],
@@ -249,13 +252,15 @@ async def search_datasets(
 
     if datasets:
         response += f"Found {len(datasets)} datasets:\n\n"
+        response += f"**💡 BigQuery Format:** `basedosdados.dataset_slug.table_slug` (e.g., `basedosdados.br_abrinq_oca.municipio_primeira_infancia`)\n\n"
         for ds in datasets:
             response += f"**{ds['name']}** (ID: {ds['id']}, Slug: {ds['slug']})\n"
             
             if ds['table_count'] > 0:
                 response += f"📊 **Data:** {ds['table_count']} tables, {ds['total_columns']} total columns\n"
                 if ds['sample_bigquery_ref']:
-                    response += f"🔗 **Sample Access:** `{ds['sample_bigquery_ref']}`\n"
+                    response += f"🔗 **BigQuery Access:** `{ds['sample_bigquery_ref']}`\n"
+                    response += f"   💡 **Copy & Use:** `SELECT * FROM `{ds['sample_bigquery_ref']}` LIMIT 100`\n"
             else:
                 response += "📊 **Data:** No tables available\n"
             
@@ -275,7 +280,7 @@ async def search_datasets(
         response += f"\n💡 **Next Steps:**\n"
         response += f"- Use `get_dataset_overview` with a dataset ID to see all tables and columns\n"
         response += f"- Use `get_table_details` with a table ID for complete column information and sample SQL\n"
-        response += f"- Access data using BigQuery references like: `{sample_ref}`"
+        response += f"- **Ready-to-use BigQuery reference:** `{sample_ref}`"
     else:
         response += "No datasets found."
     
@@ -317,7 +322,7 @@ async def get_dataset_overview(dataset_id: str) -> str:
                     # Generate full BigQuery table reference
                     dataset_slug = dataset.get("slug", "")
                     table_slug = table.get("slug", "")
-                    bigquery_ref = f"basedosdados.{dataset_slug}.{table_slug}"
+                    bigquery_ref = format_bigquery_reference(dataset_slug, table_slug)
                     
                     tables_info.append({
                         "id": table["id"],
@@ -331,6 +336,7 @@ async def get_dataset_overview(dataset_id: str) -> str:
                 
                 # Build comprehensive response
                 response = f"**📊 Dataset Overview: {dataset['name']}**\n\n"
+                response += f"**💡 BigQuery Format:** `basedosdados.dataset_slug.table_slug` (e.g., `basedosdados.br_abrinq_oca.municipio_primeira_infancia`)\n\n"
                 response += f"**Basic Information:**\n"
                 response += f"- **ID:** {dataset['id']}\n"
                 response += f"- **Slug:** {dataset.get('slug', '')}\n"
@@ -349,11 +355,13 @@ async def get_dataset_overview(dataset_id: str) -> str:
                     response += f"- **Table ID:** {table['id']}\n"
                     response += f"- **Description:** {table['description']}\n"
                     response += f"- **Sample Columns:** {', '.join(table['sample_columns'])}\n"
+                    response += f"- **💡 Quick Query:** `SELECT * FROM `{table['bigquery_reference']}` LIMIT 10`\n"
                 
                 sample_ref = tables_info[0]['bigquery_reference'] if tables_info else 'basedosdados.dataset.table'
                 response += f"\n\n**🔍 Next Steps:**\n"
                 response += f"- Use `get_table_details` with a table ID to see all columns and types with sample SQL queries\n"
-                response += f"- Access data in BigQuery using the table references above (e.g., `SELECT * FROM {sample_ref} LIMIT 100`)\n"
+                response += f"- **Ready-to-use BigQuery references above** - copy any of the table references for direct access\n"
+                response += f"- Example: `SELECT * FROM {sample_ref} LIMIT 100`"
                 
                 return response
             else:
@@ -384,14 +392,15 @@ async def get_table_details(table_id: str) -> str:
                 # Generate BigQuery table reference
                 dataset_slug = dataset.get("slug", "")
                 table_slug = table.get("slug", "")
-                bigquery_ref = f"basedosdados.{dataset_slug}.{table_slug}"
+                bigquery_ref = format_bigquery_reference(dataset_slug, table_slug)
                 
                 response = f"**📋 Table Details: {table['name']}**\n\n"
+                response += f"**🚀 BigQuery Access:** `{bigquery_ref}`\n\n"
+                response += f"**💡 Example Format:** `basedosdados.br_abrinq_oca.municipio_primeira_infancia`\n\n"
                 response += f"**Basic Information:**\n"
                 response += f"- **Table ID:** {table['id']}\n"
                 response += f"- **Table Slug:** {table_slug}\n"
                 response += f"- **Description:** {table.get('description', 'No description available')}\n"
-                response += f"- **BigQuery Reference:** `{bigquery_ref}`\n\n"
                 response += f"**Dataset Context:**\n"
                 response += f"- **Dataset:** {dataset['name']}\n"
                 response += f"- **Dataset ID:** {dataset['id']}\n"
@@ -415,15 +424,11 @@ async def get_table_details(table_id: str) -> str:
                 response += f"\n\n**🔍 Sample SQL Queries:**\n\n"
                 response += f"**Basic Select:**\n"
                 response += f"```sql\n"
-                response += f"SELECT {sample_columns}\n"
-                response += f"FROM `{bigquery_ref}`\n"
-                response += f"LIMIT 100\n"
+                response += f"{format_sql_query_with_reference(bigquery_ref, sample_columns, 100)}\n"
                 response += f"```\n\n"
                 response += f"**Full Table Schema:**\n"
                 response += f"```sql\n"
-                response += f"SELECT *\n"
-                response += f"FROM `{bigquery_ref}`\n"
-                response += f"LIMIT 10\n"
+                response += f"{format_sql_query_with_reference(bigquery_ref, '*', 10)}\n"
                 response += f"```\n\n"
                 response += f"**Column Info:**\n"
                 response += f"```sql\n"
@@ -432,9 +437,9 @@ async def get_table_details(table_id: str) -> str:
                 response += f"WHERE table_name = '{table_slug}'\n"
                 response += f"```\n\n"
                 response += f"**🚀 Access Instructions:**\n"
-                response += f"1. Use the BigQuery reference: `{bigquery_ref}`\n"
-                response += f"2. Run queries in Google BigQuery console\n"
-                response += f"3. Or use the Base dos Dados Python package: `bd.read_table('{dataset_slug}', '{table_slug}')`\n"
+                response += f"1. **BigQuery Console:** Use `{bigquery_ref}` in your queries\n"
+                response += f"2. **Python Package:** `bd.read_table('{dataset_slug}', '{table_slug}')`\n"
+                response += f"3. **Direct SQL:** Copy any query above and replace the table reference\n"
                 
                 return response
             else:
