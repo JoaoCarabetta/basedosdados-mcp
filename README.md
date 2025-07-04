@@ -21,10 +21,10 @@ Install with a single command:
 
 ```bash
 # Install everything automatically
-curl -LsSf https://raw.githubusercontent.com/JoaoCarabetta/basedosdados-mcp/main/install.sh | sh
+curl -LsSf https://raw.githubusercontent.com/JoaoCarabetta/basedosdados-mcp/refs/heads/main/install.sh | sh
 
 # Or with options
-curl -LsSf https://raw.githubusercontent.com/JoaoCarabetta/basedosdados-mcp/main/install.sh | sh -- --no-claude-desktop
+curl -LsSf https://raw.githubusercontent.com/JoaoCarabetta/basedosdados-mcp/refs/heads/main/install.sh | sh -- --no-claude-desktop
 ```
 
 The installer will:
