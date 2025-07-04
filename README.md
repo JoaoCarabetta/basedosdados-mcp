@@ -15,7 +15,28 @@ A Model Context Protocol (MCP) server that provides AI-optimized access to Base 
 
 ## 🚀 Installation
 
-### Option 1: Via PyPI
+### Option 1: One-Line Installation (Recommended)
+
+Install with a single command:
+
+```bash
+# Install everything automatically
+curl -LsSf https://raw.githubusercontent.com/JoaoCarabetta/basedosdados-mcp/main/install.sh | sh
+
+# Or with options
+curl -LsSf https://raw.githubusercontent.com/JoaoCarabetta/basedosdados-mcp/main/install.sh | sh -- --no-claude-desktop
+```
+
+The installer will:
+- ✅ Check Python version compatibility (3.10-3.14)
+- ✅ Install `uv` package manager (if needed)
+- ✅ Download and install the MCP package
+- ✅ Configure Claude Desktop automatically
+- ✅ Validate the installation
+
+**Installation Location:** `~/.local/share/basedosdados-mcp/`
+
+### Option 2: Via PyPI
 
 Install from [PyPI](https://pypi.org/project/basedosdados-mcp/):
 

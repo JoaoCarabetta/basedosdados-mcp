@@ -24,6 +24,7 @@ Requires-Python: <=3.14,>=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: mcp[cli]>=1.0.0
 Requires-Dist: httpx>=0.25.0
+Requires-Dist: fastmcp>=2.10.1
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: black>=23.0.0; extra == "dev"

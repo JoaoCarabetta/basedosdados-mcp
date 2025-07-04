@@ -31,7 +31,9 @@ classifiers = [
 dependencies = [
     "mcp[cli]>=1.0.0",
     "httpx>=0.25.0",
+    "fastmcp>=2.10.1",
 ]
+
 
 [project.urls]
 Homepage = "https://github.com/JoaoCarabetta/basedosdados-mcp"
