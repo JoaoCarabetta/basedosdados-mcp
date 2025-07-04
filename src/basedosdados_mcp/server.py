@@ -1,6 +1,8 @@
 from typing import Optional
 import httpx
 import logging
+import sys
+import os
 from mcp.server.fastmcp import FastMCP
 from basedosdados_mcp.graphql_client import make_graphql_request, DATASET_OVERVIEW_QUERY, TABLE_DETAILS_QUERY, ENHANCED_SEARCH_QUERY, COMPREHENSIVE_SEARCH_QUERY
 from basedosdados_mcp.utils import (
@@ -18,11 +20,49 @@ from basedosdados_mcp.bigquery_client import (
 logger = logging.getLogger(__name__)
 
 # =============================================================================
+# UTF-8 Encoding Configuration
+# =============================================================================
+
+# Ensure proper UTF-8 encoding for all output
+# Set environment variables for UTF-8 encoding
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+os.environ.setdefault('LC_ALL', 'en_US.UTF-8')
+os.environ.setdefault('LANG', 'en_US.UTF-8')
+
+# Force UTF-8 encoding for stdout and stderr
+if hasattr(sys.stdout, 'buffer'):
+    sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+if hasattr(sys.stderr, 'buffer'):
+    sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf-8', buffering=1)
+
+# =============================================================================
 # FastMCP Server Initialization
 # =============================================================================
 
-# Initialize the FastMCP server
+# Initialize the FastMCP server with UTF-8 encoding
 mcp = FastMCP("Base dos Dados MCP")
+
+# =============================================================================
+# Response Encoding Helper
+# =============================================================================
+
+def ensure_utf8_response(response: str) -> str:
+    """
+    Ensure the response is properly UTF-8 encoded.
+    
+    Args:
+        response: The response string to encode
+        
+    Returns:
+        Properly encoded UTF-8 string
+    """
+    if isinstance(response, bytes):
+        return response.decode('utf-8')
+    elif isinstance(response, str):
+        # Ensure proper encoding by encoding and decoding
+        return response.encode('utf-8').decode('utf-8')
+    else:
+        return str(response)
 
 # =============================================================================
 # Backend Search API Integration
@@ -73,10 +113,10 @@ async def search_datasets(
         logger.info("Attempting backend API search...")
         response = await search_datasets_backend(query, limit)
         logger.info("Backend API search completed")
-        return response
+        return ensure_utf8_response(response)
     except Exception as e:
         logger.error(f"Backend API search failed: {str(e)}")
-        return f"Search failed for query '{query}'. Please try again later."
+        return ensure_utf8_response(f"Search failed for query '{query}'. Please try again later.")
 
 # =============================================================================
 # Internal Search Functions (not exposed as tools)
@@ -193,14 +233,14 @@ async def get_dataset_overview(dataset_id: str) -> str:
                 response += f"- **Ready-to-use BigQuery references above** - copy any of the table references for direct access\n"
                 response += f"- Example: `SELECT * FROM {sample_ref} LIMIT 100`"
                 
-                return response
+                return ensure_utf8_response(response)
             else:
-                return "Dataset not found"
+                return ensure_utf8_response("Dataset not found")
         else:
-            return "Dataset not found"
+            return ensure_utf8_response("Dataset not found")
             
     except Exception as e:
-        return f"Error getting dataset overview: {str(e)}"
+        return ensure_utf8_response(f"Error getting dataset overview: {str(e)}")
 
 
 @mcp.tool()
@@ -304,14 +344,14 @@ async def get_table_details(table_id: str) -> str:
                 response += f"2. **Python Package:** `bd.read_table('{dataset_slug}', '{table_slug}')`\n"
                 response += f"3. **Direct SQL:** Copy any query above and replace the table reference\n"
                 
-                return response
+                return ensure_utf8_response(response)
             else:
-                return "Table not found"
+                return ensure_utf8_response("Table not found")
         else:
-            return "Table not found"
+            return ensure_utf8_response("Table not found")
             
     except Exception as e:
-        return f"Error getting table details: {str(e)}"
+        return ensure_utf8_response(f"Error getting table details: {str(e)}")
 
 
 @mcp.tool()
@@ -360,10 +400,10 @@ async def execute_bigquery_sql(
     """
     is_valid, error = validate_query(query)
     if not is_valid:
-        return f"❌ Query rejected: {error}"
+        return ensure_utf8_response(f"❌ Query rejected: {error}")
 
     results = await execute_query(query, max_results=max_results, timeout_seconds=timeout_seconds)
-    return format_query_results(results)
+    return ensure_utf8_response(format_query_results(results))
 
 
 @mcp.tool()
@@ -412,7 +452,7 @@ async def check_bigquery_status() -> str:
         for instruction in auth_status['instructions']:
             response += f"- {instruction}\n"
     
-    return response
+    return ensure_utf8_response(response)
 
 async def search_backend_api(query: str, limit: int = 10) -> dict:
     """
@@ -546,10 +586,10 @@ async def search_datasets_backend(
         response += f"- Use `get_table_details` with a table ID for complete column information\n"
         response += f"- Use `execute_bigquery_sql` to run queries on the data\n"
         
-        return response
+        return ensure_utf8_response(response)
         
     except Exception as e:
-        return f"Error searching datasets via backend API: {str(e)}"
+        return ensure_utf8_response(f"Error searching datasets via backend API: {str(e)}")
 
 # =============================================================================
 # Server Entry Point

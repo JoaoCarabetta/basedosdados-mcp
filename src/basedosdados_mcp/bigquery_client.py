@@ -8,6 +8,7 @@ against Base dos Dados datasets in Google BigQuery.
 import os
 import logging
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from google.cloud import bigquery
@@ -15,6 +16,33 @@ from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# UTF-8 Encoding Configuration
+# =============================================================================
+
+# Ensure proper UTF-8 encoding for all output
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+os.environ.setdefault('LC_ALL', 'en_US.UTF-8')
+os.environ.setdefault('LANG', 'en_US.UTF-8')
+
+def ensure_utf8_response(response: str) -> str:
+    """
+    Ensure the response is properly UTF-8 encoded.
+    
+    Args:
+        response: The response string to encode
+        
+    Returns:
+        Properly encoded UTF-8 string
+    """
+    if isinstance(response, bytes):
+        return response.decode('utf-8')
+    elif isinstance(response, str):
+        # Ensure proper encoding by encoding and decoding
+        return response.encode('utf-8').decode('utf-8')
+    else:
+        return str(response)
 
 # =============================================================================
 # BigQuery Client Configuration
@@ -349,7 +377,7 @@ def format_query_results(results: Dict[str, Any]) -> str:
     """
     if not results.get("success", False):
         error_msg = results.get("error", "Unknown error")
-        return f"❌ **Query Failed:** {error_msg}"
+        return ensure_utf8_response(f"❌ **Query Failed:** {error_msg}")
     
     # Extract data
     data = results.get("results", [])
@@ -375,4 +403,4 @@ def format_query_results(results: Dict[str, Any]) -> str:
     else:
         response += "** No data returned**\n"
     
-    return response
+    return ensure_utf8_response(response)
