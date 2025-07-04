@@ -48,21 +48,74 @@ mcp = FastMCP("Base dos Dados MCP")
 
 def ensure_utf8_response(response: str) -> str:
     """
-    Ensure the response is properly UTF-8 encoded.
+    Ensure the response is properly UTF-8 encoded and convert Unicode escape sequences.
     
     Args:
         response: The response string to encode
         
     Returns:
-        Properly encoded UTF-8 string
+        Properly encoded UTF-8 string with Unicode characters
     """
     if isinstance(response, bytes):
-        return response.decode('utf-8')
-    elif isinstance(response, str):
-        # Ensure proper encoding by encoding and decoding
+        response = response.decode('utf-8')
+    elif not isinstance(response, str):
+        response = str(response)
+    
+    # Handle Unicode escape sequences (e.g., \u00e7 -> ç)
+    try:
+        # First, try to decode any Unicode escape sequences
+        import codecs
+        response = codecs.decode(response, 'unicode_escape')
+    except (UnicodeDecodeError, ValueError):
+        # If that fails, try a more robust approach
+        import re
+        
+        def replace_unicode_escapes(match):
+            try:
+                return chr(int(match.group(1), 16))
+            except (ValueError, OverflowError):
+                return match.group(0)
+        
+        # Replace \uXXXX patterns with actual Unicode characters
+        response = re.sub(r'\\u([0-9a-fA-F]{4})', replace_unicode_escapes, response)
+        
+        # Also handle \xXX patterns
+        def replace_hex_escapes(match):
+            try:
+                return chr(int(match.group(1), 16))
+            except (ValueError, OverflowError):
+                return match.group(0)
+        
+        response = re.sub(r'\\x([0-9a-fA-F]{2})', replace_hex_escapes, response)
+    
+    # Ensure final encoding is UTF-8
+    try:
         return response.encode('utf-8').decode('utf-8')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # Fallback: try to encode as UTF-8, ignoring errors
+        return response.encode('utf-8', errors='ignore').decode('utf-8')
+
+def clean_api_data(data: dict) -> dict:
+    """
+    Clean API response data to handle Unicode escape sequences in nested structures.
+    
+    Args:
+        data: Dictionary containing API response data
+        
+    Returns:
+        Cleaned dictionary with proper Unicode characters
+    """
+    if isinstance(data, dict):
+        cleaned = {}
+        for key, value in data.items():
+            cleaned[key] = clean_api_data(value)
+        return cleaned
+    elif isinstance(data, list):
+        return [clean_api_data(item) for item in data]
+    elif isinstance(data, str):
+        return ensure_utf8_response(data)
     else:
-        return str(response)
+        return data
 
 # =============================================================================
 # Backend Search API Integration
@@ -121,10 +174,6 @@ async def search_datasets(
 # =============================================================================
 # Internal Search Functions (not exposed as tools)
 # =============================================================================
-
-
-
-
 
 @mcp.tool()
 async def get_dataset_overview(dataset_id: str) -> str:
@@ -242,7 +291,6 @@ async def get_dataset_overview(dataset_id: str) -> str:
     except Exception as e:
         return ensure_utf8_response(f"Error getting dataset overview: {str(e)}")
 
-
 @mcp.tool()
 async def get_table_details(table_id: str) -> str:
     """
@@ -353,7 +401,6 @@ async def get_table_details(table_id: str) -> str:
     except Exception as e:
         return ensure_utf8_response(f"Error getting table details: {str(e)}")
 
-
 @mcp.tool()
 async def execute_bigquery_sql(
     query: str,
@@ -404,7 +451,6 @@ async def execute_bigquery_sql(
 
     results = await execute_query(query, max_results=max_results, timeout_seconds=timeout_seconds)
     return ensure_utf8_response(format_query_results(results))
-
 
 @mcp.tool()
 async def check_bigquery_status() -> str:
@@ -512,6 +558,9 @@ async def search_datasets_backend(
     try:
         # Use the backend's search API
         result = await search_backend_api(query, limit)
+        
+        # Clean the API response data to handle Unicode escape sequences
+        result = clean_api_data(result)
         
         # Extract search results
         datasets = result.get("results", [])

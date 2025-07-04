@@ -28,21 +28,52 @@ os.environ.setdefault('LANG', 'en_US.UTF-8')
 
 def ensure_utf8_response(response: str) -> str:
     """
-    Ensure the response is properly UTF-8 encoded.
+    Ensure the response is properly UTF-8 encoded and convert Unicode escape sequences.
     
     Args:
         response: The response string to encode
         
     Returns:
-        Properly encoded UTF-8 string
+        Properly encoded UTF-8 string with Unicode characters
     """
     if isinstance(response, bytes):
-        return response.decode('utf-8')
-    elif isinstance(response, str):
-        # Ensure proper encoding by encoding and decoding
+        response = response.decode('utf-8')
+    elif not isinstance(response, str):
+        response = str(response)
+    
+    # Handle Unicode escape sequences (e.g., \u00e7 -> ç)
+    try:
+        # First, try to decode any Unicode escape sequences
+        import codecs
+        response = codecs.decode(response, 'unicode_escape')
+    except (UnicodeDecodeError, ValueError):
+        # If that fails, try a more robust approach
+        import re
+        
+        def replace_unicode_escapes(match):
+            try:
+                return chr(int(match.group(1), 16))
+            except (ValueError, OverflowError):
+                return match.group(0)
+        
+        # Replace \uXXXX patterns with actual Unicode characters
+        response = re.sub(r'\\u([0-9a-fA-F]{4})', replace_unicode_escapes, response)
+        
+        # Also handle \xXX patterns
+        def replace_hex_escapes(match):
+            try:
+                return chr(int(match.group(1), 16))
+            except (ValueError, OverflowError):
+                return match.group(0)
+        
+        response = re.sub(r'\\x([0-9a-fA-F]{2})', replace_hex_escapes, response)
+    
+    # Ensure final encoding is UTF-8
+    try:
         return response.encode('utf-8').decode('utf-8')
-    else:
-        return str(response)
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # Fallback: try to encode as UTF-8, ignoring errors
+        return response.encode('utf-8', errors='ignore').decode('utf-8')
 
 # =============================================================================
 # BigQuery Client Configuration
