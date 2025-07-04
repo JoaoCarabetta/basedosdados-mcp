@@ -52,7 +52,7 @@ Thumbs.db
 build/
 dist/
 .eggs/
-uv.lock
+# uv.lock
 
 # Data files
 data/
