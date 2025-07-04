@@ -21,23 +21,14 @@ logger = logging.getLogger(__name__)
 # BigQuery Client Configuration
 # =============================================================================
 
-def load_bigquery_config() -> Optional[Dict[str, Any]]:
-    """Load BigQuery configuration from config file."""
-    config_path = Path.home() / ".config" / "basedosdados-mcp" / "bigquery_config.json"
-    
-    if not config_path.exists():
-        return None
-    
-    try:
-        with open(config_path, 'r') as f:
-            config = json.load(f)
-        
-        if config.get("enabled", False):
-            return config
-        return None
-    except Exception as e:
-        logger.error(f"Error loading BigQuery config: {e}")
-        return None
+def get_bigquery_config() -> Dict[str, Any]:
+    """Get BigQuery configuration from environment variables."""
+    return {
+        "project_id": os.getenv("BIGQUERY_PROJECT_ID"),
+        "location": os.getenv("BIGQUERY_LOCATION", "US"),
+        "credentials_file": os.getenv("GOOGLE_APPLICATION_CREDENTIALS"),
+        "enabled": bool(os.getenv("GOOGLE_APPLICATION_CREDENTIALS") and os.getenv("BIGQUERY_PROJECT_ID"))
+    }
 
 class BigQueryClient:
     """Client for executing BigQuery queries against Base dos Dados datasets."""
@@ -50,26 +41,20 @@ class BigQueryClient:
     
     def _initialize_client(self) -> None:
         """Initialize BigQuery client with proper authentication."""
-        # Try to load config first
-        config = load_bigquery_config()
+        config = get_bigquery_config()
         
-        if config:
-            # Use explicit configuration
-            key_file = config.get("key_file")
-            project_id = config.get("project_id")
-            
-            if key_file and os.path.exists(key_file):
-                try:
-                    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = key_file
-                    self.project_id = project_id
-                    
-                    # Initialize BigQuery client
-                    self.client = bigquery.Client(project=project_id)
-                    
-                    logger.info(f"BigQuery client initialized with config: {project_id}")
-                    return
-                except Exception as e:
-                    logger.error(f"Error initializing BigQuery with config: {e}")
+        if config["enabled"]:
+            # Use explicit configuration from environment
+            try:
+                self.project_id = config["project_id"]
+                
+                # Initialize BigQuery client
+                self.client = bigquery.Client(project=self.project_id)
+                
+                logger.info(f"BigQuery client initialized with config: {self.project_id}")
+                return
+            except Exception as e:
+                logger.error(f"Error initializing BigQuery with config: {e}")
         
         # Fallback to default credentials
         try:
@@ -98,14 +83,14 @@ class BigQueryClient:
     
     def get_auth_status(self) -> Dict[str, Any]:
         """Get authentication status and project information."""
-        config = load_bigquery_config()
+        config = get_bigquery_config()
         
         if not self.is_available():
-            if config:
+            if config["enabled"]:
                 return {
                     "authenticated": False,
                     "error": "BigQuery config found but authentication failed",
-                    "config_file": str(Path.home() / ".config" / "basedosdados-mcp" / "bigquery_config.json"),
+                    "config": config,
                     "instructions": [
                         "1. Verifique se o arquivo de credenciais existe e é válido",
                         "2. Verifique se o project_id está correto",
@@ -116,10 +101,12 @@ class BigQueryClient:
                 return {
                     "authenticated": False,
                     "error": "No BigQuery configuration found",
+                    "config": config,
                     "instructions": [
-                        "1. Execute o script de instalação novamente para configurar BigQuery",
-                        "2. Ou configure manualmente em ~/.config/basedosdados-mcp/bigquery_config.json",
-                        "3. Ou execute: gcloud auth application-default login"
+                        "1. Configure as variáveis de ambiente:",
+                        "   - GOOGLE_APPLICATION_CREDENTIALS",
+                        "   - BIGQUERY_PROJECT_ID",
+                        "2. Ou execute: gcloud auth application-default login"
                     ]
                 }
         
@@ -127,7 +114,7 @@ class BigQueryClient:
             "authenticated": True,
             "project_id": self.project_id,
             "client_available": True,
-            "config_source": "explicit" if config else "default"
+            "config": config
         }
 
 # =============================================================================
@@ -348,19 +335,19 @@ def format_query_results(results: Dict[str, Any]) -> str:
     
     # Format response
     response = f"✅ **Query Executed Successfully**\n\n"
-    response += f"**�� Results:** {returned_rows} rows returned (of {total_rows} total)\n"
+    response += f"** Results:** {returned_rows} rows returned (of {total_rows} total)\n"
     response += f"**💾 Data Processed:** {total_bytes / (1024*1024):.2f} MB\n"
     response += f"**📋 Columns:** {', '.join(columns)}\n\n"
     
     if data:
         # Show first few rows as example
-        response += "**�� Sample Data:**\n"
+        response += "** Sample Data:**\n"
         for i, row in enumerate(data[:5]):
             response += f"Row {i+1}: {row}\n"
         
         if len(data) > 5:
             response += f"... and {len(data) - 5} more rows\n"
     else:
-        response += "**�� No data returned**\n"
+        response += "** No data returned**\n"
     
     return response

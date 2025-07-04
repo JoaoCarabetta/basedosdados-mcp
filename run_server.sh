@@ -3,7 +3,20 @@
 # Base dos Dados MCP Server - Claude Desktop Integration Script
 # This script provides a reliable wrapper for running the MCP server with Claude Desktop
 
-set -euo pipefail
+set -e
+
+# =============================================================================
+# BigQuery Configuration
+# =============================================================================
+
+# BigQuery settings - can be configured manually or during installation
+export GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-}"
+export BIGQUERY_PROJECT_ID="${BIGQUERY_PROJECT_ID:-}"
+export BIGQUERY_LOCATION="${BIGQUERY_LOCATION:-US}"
+
+# =============================================================================
+# Server Startup
+# =============================================================================
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,6 +41,23 @@ fi
 export ENVIRONMENT="development"
 export LOG_LEVEL="INFO"
 export PYTHONPATH="$SCRIPT_DIR/src"
+
+# Log configuration status
+echo "🚀 Starting Base dos Dados MCP Server..." >&2
+echo "📊 BigQuery Configuration:" >&2
+echo "   - Credentials: ${GOOGLE_APPLICATION_CREDENTIALS:-Not set}" >&2
+echo "   - Project ID: ${BIGQUERY_PROJECT_ID:-Not set}" >&2
+echo "   - Location: ${BIGQUERY_LOCATION:-US}" >&2
+
+# Check if BigQuery is configured
+if [[ -n "$GOOGLE_APPLICATION_CREDENTIALS" && -n "$BIGQUERY_PROJECT_ID" ]]; then
+    echo "✅ BigQuery configured - queries will be available" >&2
+else
+    echo "⚠️  BigQuery not configured - only metadata tools available" >&2
+    echo "   To enable BigQuery, set GOOGLE_APPLICATION_CREDENTIALS and BIGQUERY_PROJECT_ID" >&2
+fi
+
+echo "" >&2
 
 # Log startup for debugging (to stderr so it doesn't interfere with MCP protocol)
 echo "Starting Base dos Dados MCP Server..." >&2

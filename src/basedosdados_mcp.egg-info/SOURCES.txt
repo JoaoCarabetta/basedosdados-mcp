@@ -1,5 +1,6 @@
 README.md
 pyproject.toml
+src/basedosdados_mcp/bigquery_client.py
 src/basedosdados_mcp/config.py
 src/basedosdados_mcp/graphql_client.py
 src/basedosdados_mcp/main.py

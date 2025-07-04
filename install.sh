@@ -269,7 +269,8 @@ main() {
         read -p "   Project ID (ex: rj-escritorio-dev): " project_id
         
         # Solicita location
-        read -p "   Location (ex: US, us-central1): " location
+        read -p "   Location (ex: US, us-central1) [US]: " location
+        location=${location:-US}
         
         # Solicita key-file
         read -p "   Caminho para o arquivo de credenciais (ex: /path/to/service-account.json): " key_file
@@ -281,25 +282,83 @@ main() {
             exit 1
         fi
         
-        # Cria arquivo de configuração
-        config_dir="$HOME/.config/basedosdados-mcp"
-        mkdir -p "$config_dir"
+        # Atualiza o Claude Desktop config
+        claude_config="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
         
-        cat > "$config_dir/bigquery_config.json" << EOF
+        if [[ -f "$claude_config" ]]; then
+            echo "📝 Atualizando configuração do Claude Desktop..."
+            
+            # Cria backup do config original
+            cp "$claude_config" "${claude_config}.backup"
+            
+            # Atualiza o config com as variáveis de ambiente do BigQuery
+            # Usa jq para modificar o JSON de forma segura
+            if command -v jq &> /dev/null; then
+                # Se jq está disponível, usa ele para modificar o JSON
+                jq --arg cmd "/Users/joaoc/.local/share/basedosdados-mcp/run_server.sh" \
+                   --arg creds "$key_file" \
+                   --arg proj "$project_id" \
+                   --arg loc "$location" \
+                   '.mcpServers.basedosdados = {
+                       "command": $cmd,
+                       "env": {
+                           "GOOGLE_APPLICATION_CREDENTIALS": $creds,
+                           "BIGQUERY_PROJECT_ID": $proj,
+                           "BIGQUERY_LOCATION": $loc
+                       }
+                   }' "$claude_config" > "${claude_config}.tmp" && mv "${claude_config}.tmp" "$claude_config"
+                
+                echo "✅ Configuração do Claude Desktop atualizada!"
+            else
+                # Fallback: cria um novo config se jq não estiver disponível
+                cat > "$claude_config" << EOF
 {
-    "project_id": "$project_id",
-    "location": "$location",
-    "key_file": "$key_file",
-    "enabled": true
+  "mcpServers": {
+    "basedosdados": {
+      "command": "/Users/joaoc/.local/share/basedosdados-mcp/run_server.sh",
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "$key_file",
+        "BIGQUERY_PROJECT_ID": "$project_id",
+        "BIGQUERY_LOCATION": "$location"
+      }
+    }
+  }
 }
 EOF
-        
-        echo "✅ Configuração do BigQuery salva em: $config_dir/bigquery_config.json"
-        echo ""
-        echo " Para alterar essas configurações posteriormente, edite o arquivo acima."
+                echo "✅ Configuração do Claude Desktop criada!"
+            fi
+            
+            echo "📁 Backup do config original: ${claude_config}.backup"
+            echo ""
+            echo "🔄 Reinicie o Claude Desktop para aplicar as mudanças!"
+            
+        else
+            echo "⚠️  Arquivo de configuração do Claude Desktop não encontrado."
+            echo "   Crie manualmente em: $claude_config"
+            echo ""
+            echo "   Exemplo de configuração:"
+            echo "   {"
+            echo "     \"mcpServers\": {"
+            echo "       \"basedosdados\": {"
+            echo "         \"command\": \"/Users/joaoc/.local/share/basedosdados-mcp/run_server.sh\","
+            echo "         \"env\": {"
+            echo "           \"GOOGLE_APPLICATION_CREDENTIALS\": \"$key_file\","
+            echo "           \"BIGQUERY_PROJECT_ID\": \"$project_id\","
+            echo "           \"BIGQUERY_LOCATION\": \"$location\""
+            echo "         }"
+            echo "       }"
+            echo "     }"
+            echo "   }"
+        fi
         
     else
-        echo "ℹ️  BigQuery não foi ativado. Você pode ativar posteriormente editando a configuração."
+        echo "ℹ️  BigQuery não foi ativado."
+        echo "   Para ativar manualmente, edite o claude_desktop_config.json e adicione:"
+        echo "   \"env\": {"
+        echo "     \"GOOGLE_APPLICATION_CREDENTIALS\": \"/path/to/service-account.json\","
+        echo "     \"BIGQUERY_PROJECT_ID\": \"your-project-id\","
+        echo "     \"BIGQUERY_LOCATION\": \"US\""
+        echo "   }"
     fi
 
     echo ""
