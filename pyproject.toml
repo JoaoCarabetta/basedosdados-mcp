@@ -10,10 +10,10 @@ readme = "README.md"
 requires-python = ">=3.10,<=3.14"
 license = "MIT"
 authors = [
-    {name = "João Costa", email = "joao@example.com"}
+    {name = "João Carabetta", email = "joao.carabetta@gmail.com"}
 ]
 maintainers = [
-    {name = "João Costa", email = "joao@example.com"}
+    {name = "João Carabetta", email = "joao.carabetta@gmail.com"}
 ]
 keywords = ["mcp", "brazil", "data", "bigquery", "government", "open-data"]
 classifiers = [
@@ -31,25 +31,19 @@ classifiers = [
 dependencies = [
     "mcp[cli]>=1.0.0",
     "httpx>=0.25.0",
-    "pydantic>=2.0.0,<2.11",
-    "google-cloud-bigquery>=3.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/joaoc/basedosdados_mcp"
-Documentation = "https://github.com/joaoc/basedosdados_mcp#readme"
-Repository = "https://github.com/joaoc/basedosdados_mcp"
-"Bug Tracker" = "https://github.com/joaoc/basedosdados_mcp/issues"
+Homepage = "https://github.com/JoaoCarabetta/basedosdados-mcp"
+Documentation = "https://github.com/JoaoCarabetta/basedosdados-mcp#readme"
+Repository = "https://github.com/JoaoCarabetta/basedosdados-mcp"
+"Bug Tracker" = "https://github.com/JoaoCarabetta/basedosdados-mcp/issues"
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
-]
-production = [
-    "uvicorn[standard]>=0.20.0",
-    "gunicorn>=20.0.0",
 ]
 
 [project.scripts]

@@ -20,7 +20,12 @@
       "Bash(docker build:*)",
       "Bash(docker run:*)",
       "Bash(time docker build:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(uv build:*)",
+      "Bash(unzip:*)",
+      "Bash(mkdir:*)",
+      "Bash(uv publish:*)",
+      "Bash(npx:*)"
     ],
     "deny": []
   }

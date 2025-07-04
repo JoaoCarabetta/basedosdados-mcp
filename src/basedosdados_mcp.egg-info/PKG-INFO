@@ -2,13 +2,13 @@ Metadata-Version: 2.4
 Name: basedosdados-mcp
 Version: 0.1.0
 Summary: Model Context Protocol server for Base dos Dados (Brazilian open data platform)
-Author-email: João Costa <joao@example.com>
-Maintainer-email: João Costa <joao@example.com>
+Author-email: João Carabetta <joao.carabetta@gmail.com>
+Maintainer-email: João Carabetta <joao.carabetta@gmail.com>
 License-Expression: MIT
-Project-URL: Homepage, https://github.com/joaoc/basedosdados_mcp
-Project-URL: Documentation, https://github.com/joaoc/basedosdados_mcp#readme
-Project-URL: Repository, https://github.com/joaoc/basedosdados_mcp
-Project-URL: Bug Tracker, https://github.com/joaoc/basedosdados_mcp/issues
+Project-URL: Homepage, https://github.com/JoaoCarabetta/basedosdados-mcp
+Project-URL: Documentation, https://github.com/JoaoCarabetta/basedosdados-mcp#readme
+Project-URL: Repository, https://github.com/JoaoCarabetta/basedosdados-mcp
+Project-URL: Bug Tracker, https://github.com/JoaoCarabetta/basedosdados-mcp/issues
 Keywords: mcp,brazil,data,bigquery,government,open-data
 Classifier: Development Status :: 4 - Beta
 Classifier: Intended Audience :: Developers
@@ -24,15 +24,10 @@ Requires-Python: <=3.14,>=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: mcp[cli]>=1.0.0
 Requires-Dist: httpx>=0.25.0
-Requires-Dist: pydantic<2.11,>=2.0.0
-Requires-Dist: google-cloud-bigquery>=3.0.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: black>=23.0.0; extra == "dev"
 Requires-Dist: ruff>=0.1.0; extra == "dev"
-Provides-Extra: production
-Requires-Dist: uvicorn[standard]>=0.20.0; extra == "production"
-Requires-Dist: gunicorn>=20.0.0; extra == "production"
 
 # Base dos Dados MCP Server
 
@@ -51,21 +46,19 @@ A Model Context Protocol (MCP) server that provides AI-optimized access to Base 
 
 ## 🚀 Installation
 
-### Via Smithery (Recommended)
+### Via PyPI (Recommended)
 
-Install directly from [Smithery](https://smithery.ai/server/basedosdados-mcp):
+Install directly from PyPI:
 
 ```bash
-# Using Smithery CLI
-smithery install basedosdados-mcp
+# Install with pip
+pip install basedosdados-mcp
 
-# Or add to your Claude Desktop configuration
+# Or with uv (faster)
+uv add basedosdados-mcp
 ```
 
-### Claude Desktop Configuration
-
-Add to your `claude_desktop_config.json`:
-
+**Claude Desktop Configuration:**
 ```json
 {
   "mcpServers": {
@@ -76,18 +69,34 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-### Manual Installation
+### Via Smithery (Alternative)
 
-1. **Install dependencies**:
+Install from [Smithery MCP Registry](https://smithery.ai/):
+
+```bash
+# Using Smithery CLI
+npx @smithery/cli install basedosdados-mcp
+```
+
+### Manual Installation (Development)
+
+1. **Clone and install**:
    ```bash
+   git clone https://github.com/joaoc/basedosdados_mcp
+   cd basedosdados_mcp
    uv sync
    ```
 
 2. **Run the server**:
    ```bash
+   # Production mode
    uv run basedosdados-mcp
-   # Or using the wrapper script
-   bash run_server.sh
+   
+   # Development mode (with debug logging)
+   uv run basedosdados-mcp-dev
+   
+   # Using the wrapper script
+   ./run_server.sh
    ```
 
 3. **Configure Claude Desktop**:
@@ -101,6 +110,19 @@ Add to your `claude_desktop_config.json`:
    }
    ```
 
+### Docker
+
+```bash
+# Pull from Docker Hub
+docker pull joaoc/basedosdados-mcp
+
+# Or build locally
+docker build -t basedosdados-mcp .
+
+# Run the container
+docker run --rm basedosdados-mcp
+```
+
 
 
 ## 🛠️ Available Tools
@@ -110,16 +132,9 @@ Add to your `claude_desktop_config.json`:
 | Tool | Description | Example |
 |------|-------------|---------|
 | **`search_datasets`** | Smart search with Portuguese accent normalization | `search_datasets(query="população", limit=10)` |
-| **`get_dataset_overview`** | Complete dataset view with all tables | `get_dataset_overview(dataset_id="br_ibge_populacao")` |
-| **`get_table_details`** | Comprehensive table info with SQL samples | `get_table_details(dataset_id="br_ibge_populacao", table_id="municipio")` |
-| **`explore_data`** | Multi-level data exploration | `explore_data(query="educação", mode="detailed")` |
+| **`get_dataset_overview`** | Complete dataset view with all tables | `get_dataset_overview(dataset_id="DatasetNode:abc123")` |
+| **`get_table_details`** | Comprehensive table info with SQL samples | `get_table_details(table_id="TableNode:xyz789")` |
 
-### Resources
-
-| Resource | Description |
-|----------|-------------|
-| **`basedosdados://help`** | AI-optimized usage guidance |
-| **`basedosdados://datasets`** | Dataset discovery examples |
 
 ## 💡 Usage Examples
 
@@ -132,26 +147,11 @@ search_datasets(query="IBGE demografico")
 
 ### Explore Dataset Structure
 ```python
-# Get complete overview of a dataset
-get_dataset_overview(dataset_id="br_ibge_populacao")
+# Get complete overview of a dataset (use dataset ID from search results)
+get_dataset_overview(dataset_id="DatasetNode:br_ibge_populacao_id")
 
-# Get detailed table information with sample SQL
-get_table_details(
-    dataset_id="br_ibge_populacao", 
-    table_id="municipio"
-)
-```
-
-### Multi-level Data Exploration
-```python
-# Quick overview
-explore_data(query="RAIS employment", mode="overview")
-
-# Detailed exploration
-explore_data(query="Brazilian education", mode="detailed")
-
-# Find related datasets
-explore_data(query="census data", mode="related")
+# Get detailed table information with sample SQL (use table ID from overview)
+get_table_details(table_id="TableNode:municipio_id")
 ```
 
 ## 🧠 Key Features
@@ -173,7 +173,7 @@ explore_data(query="census data", mode="related")
 - **Economic Indicators**: Central Bank, ministries, regional data
 - **Health & Demographics**: SUS, population statistics, vital records
 
-## 🔧 Development
+## 🔧 Local Development & Testing
 
 ### Setup
 ```bash
@@ -183,19 +183,70 @@ cd basedosdados_mcp
 uv sync
 ```
 
-### Testing
+### Testing with Claude Desktop
+
+#### 1. **Quick Test** (Recommended)
+Use the wrapper script for easy Claude Desktop integration:
+
+```json
+// Add to your claude_desktop_config.json
+{
+  "mcpServers": {
+    "basedosdados": {
+      "command": "/path/to/basedosdados_mcp/run_server.sh"
+    }
+  }
+}
+```
+
+#### 2. **Direct Command** (Alternative)
+```json
+// Add to your claude_desktop_config.json
+{
+  "mcpServers": {
+    "basedosdados": {
+      "command": "uv",
+      "args": ["run", "basedosdados-mcp-dev"],
+      "cwd": "/path/to/basedosdados_mcp"
+    }
+  }
+}
+```
+
+#### 3. **Testing the Server**
 ```bash
-# Run MCP server
+# Test server startup (development mode)
+uv run basedosdados-mcp-dev
+
+# Test server startup (production mode)  
 uv run basedosdados-mcp
 
-# Test all functionality
-uv run test_mcp_fixed.py
+# Test with wrapper script
+./run_server.sh
+```
 
-# Test BigQuery permissions
-uv run test_bigquery_permissions.py
+### Troubleshooting Claude Desktop Integration
 
-# Debug API endpoints
-uv run scripts/debug_endpoints.py
+**Common Issues:**
+- **Server won't start**: Check that `uv sync` completed successfully
+- **Tools not available**: Verify the `cwd` path in your config is correct
+- **Connection errors**: Check Claude Desktop logs at `~/Library/Logs/Claude/`
+
+**Debug Logging:**
+The wrapper script (`run_server.sh`) includes debug output to stderr. Check Claude Desktop logs for startup messages.
+
+### Manual Testing
+```bash
+# Test tool functionality directly
+uv run python -c "
+import asyncio
+from src.basedosdados_mcp.server import search_datasets
+async def test():
+    result = await search_datasets('ibge', limit=2)
+    print('✅ Search works!')
+    print(result[:200] + '...')
+asyncio.run(test())
+"
 ```
 
 ### Docker Support
