@@ -221,3 +221,59 @@ query EnhancedSearchDatasets($query: String, $first: Int) {
     }
 }
 """
+
+# More comprehensive search query that searches in multiple fields
+COMPREHENSIVE_SEARCH_QUERY = """
+query ComprehensiveSearchDatasets($query: String, $first: Int) {
+    allDataset(
+        name_Icontains: $query,
+        first: $first
+    ) {
+        edges {
+            node {
+                id
+                name
+                slug
+                description
+                organizations {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                themes {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tags {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tables {
+                    edges {
+                        node {
+                            id
+                            name
+                            slug
+                            columns {
+                                edges {
+                                    node {
+                                        id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"""

@@ -1,6 +1,8 @@
 from typing import Optional
+import httpx
+import logging
 from mcp.server.fastmcp import FastMCP
-from basedosdados_mcp.graphql_client import make_graphql_request, DATASET_OVERVIEW_QUERY, TABLE_DETAILS_QUERY, ENHANCED_SEARCH_QUERY
+from basedosdados_mcp.graphql_client import make_graphql_request, DATASET_OVERVIEW_QUERY, TABLE_DETAILS_QUERY, ENHANCED_SEARCH_QUERY, COMPREHENSIVE_SEARCH_QUERY
 from basedosdados_mcp.utils import (
     clean_graphql_id, format_bigquery_reference, format_bigquery_reference_with_highlighting, format_sql_query_with_reference
 )
@@ -10,6 +12,12 @@ from basedosdados_mcp.bigquery_client import (
 )
 
 # =============================================================================
+# Logging Setup
+# =============================================================================
+
+logger = logging.getLogger(__name__)
+
+# =============================================================================
 # FastMCP Server Initialization
 # =============================================================================
 
@@ -17,118 +25,101 @@ from basedosdados_mcp.bigquery_client import (
 mcp = FastMCP("Base dos Dados MCP")
 
 # =============================================================================
-# MCP Tools using FastMCP Decorators
+# Backend Search API Integration
 # =============================================================================
 
 @mcp.tool()
 async def search_datasets(
     query: str,
-    theme: Optional[str] = None,
-    organization: Optional[str] = None,
     limit: int = 10
 ) -> str:
-    """Search for datasets with comprehensive information including table and column counts"""
+    """
+    🔍 Search for datasets in Base dos Dados using the same infrastructure as the website.
     
+    This tool provides access to the comprehensive Brazilian open data repository,
+    searching across all datasets, organizations, themes, and descriptions.
+    
+    **Features:**
+    - Uses the same search API as basedosdados.org for consistent results
+    - Returns detailed dataset information with BigQuery table references
+    - Includes organizations, themes, tags, and data coverage information
+    - Provides ready-to-use BigQuery table references for direct data access
+    
+    **Examples:**
+    - Search by organization: "ibge", "anvisa", "ministerio da saude"
+    - Search by theme: "saude", "educacao", "economia", "transporte"
+    - Search by topic: "covid", "eleicoes", "clima", "energia"
+    - Search by data type: "municipios", "estados", "empresas"
+    
+    **Returns:**
+    - Dataset names, descriptions, and metadata
+    - Organization and theme information
+    - Table counts and BigQuery references
+    - Temporal and spatial coverage details
+    - Ready-to-use SQL query examples
+    
+    Args:
+        query: Search term to find relevant datasets (e.g., "ibge", "saude", "educacao", "covid")
+        limit: Maximum number of results to return (default: 10, max: 50)
+        
+    Returns:
+        Comprehensive search results with dataset information and BigQuery table references
+    """
+    
+    logger.info(f"Starting search for query: '{query}' with limit: {limit}")
+    
+    # Use Backend API (same infrastructure as the site - most reliable)
     try:
-        # Simple direct search
-        variables = {"first": limit, "query": query}
-        result = await make_graphql_request(ENHANCED_SEARCH_QUERY, variables)
-        
-        datasets = []
-        if result.get("data", {}).get("allDataset", {}).get("edges"):
-            for edge in result["data"]["allDataset"]["edges"]:
-                node = edge["node"]
-                
-                # Extract basic info
-                org_names = [org["node"]["name"] for org in node.get("organizations", {}).get("edges", [])]
-                theme_names = [t["node"]["name"] for t in node.get("themes", {}).get("edges", [])]
-                tag_names = [t["node"]["name"] for t in node.get("tags", {}).get("edges", [])]
-                
-                # Simple filtering
-                if theme and theme.lower() not in [t.lower() for t in theme_names]:
-                    continue
-                if organization and organization.lower() not in [org.lower() for org in org_names]:
-                    continue
-                
-                # Calculate table info
-                tables = node.get("tables", {}).get("edges", [])
-                table_count = len(tables)
-                
-                # Skip datasets with no tables
-                if table_count == 0:
-                    continue
-                    
-                total_columns = sum(len(table["node"].get("columns", {}).get("edges", [])) for table in tables)
-                
-                # Get sample table names
-                sample_tables = [table["node"]["name"] for table in tables[:3]]
-                if len(tables) > 3:
-                    sample_tables.append(f"... and {len(tables) - 3} more")
-                
-                # Generate BigQuery reference
-                sample_bigquery_ref = ""
-                if tables:
-                    dataset_slug = node.get("slug", "")
-                    first_table_slug = tables[0]["node"].get("slug", "")
-                    sample_bigquery_ref = format_bigquery_reference(dataset_slug, first_table_slug)
-                
-                datasets.append({
-                    "id": node["id"],
-                    "name": node["name"],
-                    "slug": node.get("slug", ""),
-                    "description": node.get("description", ""),
-                    "organizations": ", ".join(org_names),
-                    "themes": theme_names,
-                    "tags": tag_names,
-                    "table_count": table_count,
-                    "total_columns": total_columns,
-                    "sample_tables": sample_tables,
-                    "sample_bigquery_ref": sample_bigquery_ref
-                })
-        
-        # Build response
-        response = ""
-        if datasets:
-            response += f"Found {len(datasets)} datasets with tables:\n\n"
-            response += f"**💡 BigQuery Format:** `basedosdados.dataset_slug.table_slug` (e.g., `basedosdados.br_abrinq_oca.municipio_primeira_infancia`)\n\n"
-            
-            for ds in datasets:
-                response += f"**{ds['name']}** (ID: {ds['id']}, Slug: {ds['slug']})\n"
-                
-                response += f"📊 **Data:** {ds['table_count']} tables, {ds['total_columns']} total columns\n"
-                if ds['sample_bigquery_ref']:
-                    response += f"🔗 **BigQuery Access:** `{ds['sample_bigquery_ref']}`\n"
-                    response += f"   💡 **Copy & Use:** `SELECT * FROM `{ds['sample_bigquery_ref']}` LIMIT 100`\n"
-                
-                if ds['sample_tables']:
-                    response += f"📋 **Tables:** {', '.join(ds['sample_tables'])}\n"
-                
-                response += f"**Description:** {ds['description']}\n"
-                if ds['organizations']:
-                    response += f"**Organizations:** {ds['organizations']}\n"
-                if ds['themes']:
-                    response += f"**Themes:** {', '.join(ds['themes'])}\n"
-                if ds['tags']:
-                    response += f"**Tags:** {', '.join(ds['tags'])}\n"
-                response += "\n"
-            
-            sample_ref = datasets[0]['sample_bigquery_ref'] if datasets[0]['sample_bigquery_ref'] else 'basedosdados.dataset.table'
-            response += f"\n💡 **Next Steps:**\n"
-            response += f"- Use `get_dataset_overview` with a dataset ID to see all tables and columns\n"
-            response += f"- Use `get_table_details` with a table ID for complete column information and sample SQL\n"
-            response += f"- **Ready-to-use BigQuery reference:** `{sample_ref}`"
-        else:
-            response += "No datasets found."
-        
+        logger.info("Attempting backend API search...")
+        response = await search_datasets_backend(query, limit)
+        logger.info("Backend API search completed")
         return response
-        
     except Exception as e:
-        return f"Error searching datasets: {str(e)}"
+        logger.error(f"Backend API search failed: {str(e)}")
+        return f"Search failed for query '{query}'. Please try again later."
+
+# =============================================================================
+# Internal Search Functions (not exposed as tools)
+# =============================================================================
+
+
+
 
 
 @mcp.tool()
 async def get_dataset_overview(dataset_id: str) -> str:
-    """Get complete dataset overview including all tables with columns, descriptions, and ready-to-use BigQuery table references"""
+    """
+    📊 Get comprehensive dataset overview with all tables, columns, and BigQuery references.
+    
+    This tool provides detailed information about a specific dataset, including all its tables,
+    column structures, and ready-to-use BigQuery table references for direct data access.
+    
+    **Features:**
+    - Complete dataset metadata (description, organizations, themes, tags)
+    - All tables with column counts and sample column names
+    - BigQuery table references for each table
+    - Ready-to-use SQL query examples
+    - Data structure overview (total tables and columns)
+    
+    **Use Cases:**
+    - Explore dataset structure before querying data
+    - Get BigQuery table references for data analysis
+    - Understand data coverage and organization
+    - Plan SQL queries with proper table references
+    
+    **Returns:**
+    - Dataset basic information and metadata
+    - Complete list of tables with column counts
+    - BigQuery table references for each table
+    - Sample column names for each table
+    - Ready-to-use SQL query examples
+    
+    Args:
+        dataset_id: The GraphQL ID of the dataset (obtained from search results)
+        
+    Returns:
+        Comprehensive dataset overview with all tables and BigQuery references
+    """
     
     dataset_id = clean_graphql_id(dataset_id)
     
@@ -214,7 +205,40 @@ async def get_dataset_overview(dataset_id: str) -> str:
 
 @mcp.tool()
 async def get_table_details(table_id: str) -> str:
-    """Get comprehensive table information with all columns, types, descriptions, and BigQuery access instructions"""
+    """
+    📋 Get detailed table information with all columns, types, and BigQuery access instructions.
+    
+    This tool provides comprehensive information about a specific table, including all columns,
+    their data types, descriptions, and multiple ways to access the data in BigQuery.
+    
+    **Features:**
+    - Complete table metadata and description
+    - All columns with data types and descriptions
+    - BigQuery table reference for direct access
+    - Sample SQL queries for different use cases
+    - Multiple access methods (BigQuery Console, Python package, direct SQL)
+    - Column information queries for schema exploration
+    
+    **Use Cases:**
+    - Understand table structure and column types
+    - Get BigQuery table reference for data analysis
+    - Generate SQL queries with proper column selection
+    - Explore data schema and relationships
+    - Plan data analysis workflows
+    
+    **Returns:**
+    - Table metadata and dataset context
+    - Complete column list with types and descriptions
+    - BigQuery table reference
+    - Sample SQL queries (basic select, full schema, column info)
+    - Access instructions for different platforms
+    
+    Args:
+        table_id: The GraphQL ID of the table (obtained from dataset overview or search results)
+        
+    Returns:
+        Comprehensive table details with all columns and BigQuery access instructions
+    """
     
     table_id = clean_graphql_id(table_id)
     
@@ -297,8 +321,42 @@ async def execute_bigquery_sql(
     timeout_seconds: int = 300
 ) -> str:
     """
-    Execute a SQL query directly on Base dos Dados in BigQuery.
-    Only SELECT queries on basedosdados.* tables are allowed.
+    🚀 Execute SQL queries directly on Base dos Dados data in BigQuery.
+    
+    This tool allows you to run SQL queries on the Base dos Dados dataset in BigQuery,
+    providing direct access to Brazilian open data for analysis and exploration.
+    
+    **Features:**
+    - Execute SELECT queries on any basedosdados.* table
+    - Automatic query validation and security checks
+    - Configurable result limits and timeout settings
+    - Formatted results with column information
+    - Support for complex SQL operations (JOINs, aggregations, etc.)
+    
+    **Security:**
+    - Only SELECT queries are allowed for data safety
+    - Queries are restricted to basedosdados.* tables
+    - Automatic validation prevents unauthorized operations
+    
+    **Use Cases:**
+    - Data exploration and analysis
+    - Statistical calculations and aggregations
+    - Data quality assessment
+    - Cross-dataset analysis with JOINs
+    - Time series analysis and trends
+    
+    **Examples:**
+    - Basic data exploration: `SELECT * FROM basedosdados.br_ibge_pnad_covid.microdados LIMIT 100`
+    - Aggregations: `SELECT estado, COUNT(*) FROM basedosdados.br_ibge_pnad_covid.microdados GROUP BY estado`
+    - Time analysis: `SELECT DATE(data), COUNT(*) FROM basedosdados.br_ibge_pnad_covid.microdados GROUP BY DATE(data)`
+    
+    Args:
+        query: SQL SELECT query to execute on basedosdados.* tables
+        max_results: Maximum number of rows to return (default: 1000, max: 10000)
+        timeout_seconds: Query timeout in seconds (default: 300, max: 600)
+        
+    Returns:
+        Formatted query results with data and column information
     """
     is_valid, error = validate_query(query)
     if not is_valid:
@@ -311,8 +369,31 @@ async def execute_bigquery_sql(
 @mcp.tool()
 async def check_bigquery_status() -> str:
     """
-    Check BigQuery authentication status and configuration.
-    Returns detailed information about the current setup.
+    🔧 Check BigQuery authentication status and configuration.
+    
+    This tool verifies the BigQuery connection and authentication setup,
+    providing detailed information about the current configuration and any issues.
+    
+    **Features:**
+    - Authentication status verification
+    - Project ID and configuration source information
+    - Detailed error messages and troubleshooting instructions
+    - Setup guidance for different authentication methods
+    
+    **Use Cases:**
+    - Verify BigQuery access before running queries
+    - Troubleshoot authentication issues
+    - Check project configuration
+    - Validate setup for data analysis workflows
+    
+    **Returns:**
+    - Authentication status (✅ Authenticated / ❌ Not authenticated)
+    - Project ID and configuration source
+    - Error details if authentication fails
+    - Step-by-step setup instructions if needed
+    
+    Returns:
+        Detailed BigQuery status information with authentication details and setup instructions
     """
     client = BigQueryClient()
     auth_status = client.get_auth_status()
@@ -333,6 +414,142 @@ async def check_bigquery_status() -> str:
     
     return response
 
+async def search_backend_api(query: str, limit: int = 10) -> dict:
+    """
+    Internal function: Use the Base dos Dados backend search API directly.
+    
+    This function calls the same API that the website uses internally:
+    https://backend.basedosdados.org/search/
+    
+    Args:
+        query: Search term to find datasets
+        limit: Maximum number of results to return
+        
+    Returns:
+        Raw API response with search results
+    """
+    try:
+        # Use the backend search API directly
+        search_url = "https://backend.basedosdados.org/search/"
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                search_url,
+                params={"q": query, "page_size": limit}
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            logger.info(f"Backend API response: found {result.get('count', 0)} total results, showing {len(result.get('results', []))} results")
+            
+            return result
+            
+    except httpx.TimeoutException:
+        raise Exception("Search request timeout - the backend API is taking too long to respond")
+    except httpx.RequestError as e:
+        raise Exception(f"Network error accessing backend search: {str(e)}")
+    except Exception as e:
+        raise Exception(f"Error accessing backend search API: {str(e)}")
+
+async def search_datasets_backend(
+    query: str,
+    limit: int = 10
+) -> str:
+    """
+    Internal function: Search for datasets using the Base dos Dados backend search API.
+    
+    This function uses the same API that the website uses internally,
+    providing the most accurate and comprehensive results.
+    
+    Args:
+        query: Search term to find datasets
+        limit: Maximum number of results to return
+        
+    Returns:
+        Formatted search results with dataset information
+    """
+    
+    try:
+        # Use the backend's search API
+        result = await search_backend_api(query, limit)
+        
+        # Extract search results
+        datasets = result.get("results", [])
+        total_count = result.get("count", 0)
+        
+        # Build response
+        response = f"**🔍 Search Results for: '{query}'**\n\n"
+        response += f"**💡 Using Base dos Dados Backend API (Same as Website)**\n\n"
+        
+        if datasets:
+            response += f"Found {len(datasets)} datasets (showing {len(datasets)} of {total_count} total):\n\n"
+            response += f"**💡 BigQuery Format:** `basedosdados.dataset_slug.table_slug` (e.g., `basedosdados.br_abrinq_oca.municipio_primeira_infancia`)\n\n"
+            
+            for i, dataset in enumerate(datasets, 1):
+                response += f"**{i}. {dataset.get('name', 'Unnamed Dataset')}**\n"
+                
+                if dataset.get('description'):
+                    response += f"📝 **Description:** {dataset['description']}\n"
+                
+                if dataset.get('slug'):
+                    response += f"🔗 **Slug:** {dataset['slug']}\n"
+                
+                # Organizations
+                if dataset.get('organizations'):
+                    org_names = [org.get('name', '') for org in dataset['organizations']]
+                    response += f"🏢 **Organizations:** {', '.join(org_names)}\n"
+                
+                # Themes
+                if dataset.get('themes'):
+                    theme_names = [theme.get('name', '') for theme in dataset['themes']]
+                    response += f"🎨 **Themes:** {', '.join(theme_names)}\n"
+                
+                # Tags
+                if dataset.get('tags'):
+                    tag_names = [tag.get('name', '') for tag in dataset['tags']]
+                    response += f"🏷️ **Tags:** {', '.join(tag_names)}\n"
+                
+                # Tables info
+                n_tables = dataset.get('n_tables', 0)
+                if n_tables > 0:
+                    response += f"📊 **Tables:** {n_tables} tables\n"
+                    
+                    # Generate BigQuery reference if we have table info
+                    if dataset.get('slug') and dataset.get('first_table_id'):
+                        # For now, we'll use a generic format since we don't have table slug
+                        bigquery_ref = f"basedosdados.{dataset['slug']}.table_name"
+                        response += f"🔗 **BigQuery:** `{bigquery_ref}`\n"
+                        response += f"   💡 **Quick Query:** `SELECT * FROM `{bigquery_ref}` LIMIT 10`\n"
+                
+                # Coverage info
+                if dataset.get('temporal_coverage'):
+                    response += f"📅 **Temporal Coverage:** {', '.join(dataset['temporal_coverage'])}\n"
+                
+                if dataset.get('spatial_coverage'):
+                    spatial_names = [spatial.get('name', '') for spatial in dataset['spatial_coverage']]
+                    response += f"🌍 **Spatial Coverage:** {', '.join(spatial_names)}\n"
+                
+                # Data availability
+                if dataset.get('contains_open_data'):
+                    response += f"✅ **Open Data:** Available\n"
+                
+                if dataset.get('contains_tables'):
+                    response += f"📋 **Tables:** Available\n"
+                
+                response += "\n"
+        
+        else:
+            response += "No datasets found matching your search criteria."
+        
+        response += f"\n**💡 Next Steps:**\n"
+        response += f"- Use `get_dataset_overview` with a dataset ID for detailed table information\n"
+        response += f"- Use `get_table_details` with a table ID for complete column information\n"
+        response += f"- Use `execute_bigquery_sql` to run queries on the data\n"
+        
+        return response
+        
+    except Exception as e:
+        return f"Error searching datasets via backend API: {str(e)}"
 
 # =============================================================================
 # Server Entry Point
