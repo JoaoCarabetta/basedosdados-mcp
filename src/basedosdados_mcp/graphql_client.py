@@ -1,5 +1,6 @@
 from typing import Any, Dict, Optional
 import httpx
+import json
 from .config import GRAPHQL_ENDPOINT
 
 # =============================================================================
@@ -44,9 +45,12 @@ async def make_graphql_request(query: str, variables: Optional[Dict[str, Any]] =
                 error_data = response.json()
                 if "errors" in error_data:
                     error_messages = [err.get("message", "Unknown error") for err in error_data["errors"]]
-                    raise Exception(f"GraphQL errors: {'; '.join(error_messages)}")
+                    # Preserve UTF-8 characters in error messages
+                    error_json = json.dumps(error_data, ensure_ascii=False)
+                    raise Exception(f"GraphQL errors: {error_json}")
                 else:
-                    raise Exception(f"Bad Request (400): {error_data}")
+                    error_json = json.dumps(error_data, ensure_ascii=False)
+                    raise Exception(f"Bad Request (400): {error_json}")
             
             # Raise for other HTTP errors
             response.raise_for_status()
@@ -55,7 +59,9 @@ async def make_graphql_request(query: str, variables: Optional[Dict[str, Any]] =
             # Check for GraphQL errors in successful responses
             if "errors" in result:
                 error_messages = [err.get("message", "Unknown error") for err in result["errors"]]
-                raise Exception(f"GraphQL errors: {'; '.join(error_messages)}")
+                # Preserve UTF-8 characters in error messages
+                error_json = json.dumps(result["errors"], ensure_ascii=False)
+                raise Exception(f"GraphQL errors: {error_json}")
                 
             return result
             

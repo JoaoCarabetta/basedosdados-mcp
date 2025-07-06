@@ -13,6 +13,8 @@ from mcp.server.fastmcp import FastMCP
 # Force UTF-8 encoding for stdout/stderr to prevent encoding issues in Claude Desktop
 # Set environment variables for UTF-8 support early
 os.environ['PYTHONIOENCODING'] = 'utf-8'
+os.environ['LC_ALL'] = 'en_US.UTF-8'
+os.environ['LANG'] = 'en_US.UTF-8'
 
 # Try to reconfigure stdout/stderr encoding if available (Python 3.7+)
 try:
@@ -31,6 +33,68 @@ except (AttributeError, OSError):
 def safe_json_dumps(obj):
     """Safely serialize JSON with UTF-8 encoding preservation."""
     return json.dumps(obj, ensure_ascii=False, indent=2)
+
+# Monkey-patch json.dumps to always use ensure_ascii=False for UTF-8 support
+_original_json_dumps = json.dumps
+def utf8_json_dumps(obj, **kwargs):
+    """Override json.dumps to always preserve UTF-8 characters."""
+    kwargs['ensure_ascii'] = False
+    return _original_json_dumps(obj, **kwargs)
+
+# Apply the monkey-patch
+json.dumps = utf8_json_dumps
+
+# =============================================================================
+# UTF-8 Response Wrapper
+# =============================================================================
+
+def utf8_response_wrapper(response_text: str) -> str:
+    """
+    Wrapper to ensure all MCP tool responses preserve UTF-8 characters.
+    
+    This prevents the MCP library from escaping Portuguese characters as Unicode sequences.
+    """
+    # Ensure the response is properly encoded as UTF-8
+    if isinstance(response_text, str):
+        # Encode and decode to ensure proper UTF-8 handling
+        response_bytes = response_text.encode('utf-8')
+        response_text = response_bytes.decode('utf-8')
+        
+        # Double-check: replace any Unicode escape sequences that might have snuck in
+        # This is a safety net in case the MCP library has already processed the text
+        import re
+        unicode_pattern = r'\\u([0-9a-fA-F]{4})'
+        
+        def replace_unicode_escape(match):
+            unicode_code = int(match.group(1), 16)
+            return chr(unicode_code)
+        
+        response_text = re.sub(unicode_pattern, replace_unicode_escape, response_text)
+    
+    return response_text
+
+
+def utf8_tool(func):
+    """
+    Decorator to ensure all MCP tool responses preserve UTF-8 characters.
+    
+    This decorator automatically wraps the return value of tool functions
+    to prevent the MCP library from escaping Portuguese characters.
+    """
+    import functools
+    
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        # Call the original function
+        result = await func(*args, **kwargs)
+        
+        # Wrap the response to ensure UTF-8 preservation
+        if isinstance(result, str):
+            return utf8_response_wrapper(result)
+        else:
+            return result
+    
+    return wrapper
 from basedosdados_mcp.graphql_client import make_graphql_request, DATASET_OVERVIEW_QUERY, TABLE_DETAILS_QUERY, ENHANCED_SEARCH_QUERY, COMPREHENSIVE_SEARCH_QUERY
 from basedosdados_mcp.utils import (
     clean_graphql_id, format_bigquery_reference, format_bigquery_reference_with_highlighting, format_sql_query_with_reference
@@ -58,6 +122,7 @@ mcp = FastMCP("Base dos Dados MCP")
 # =============================================================================
 
 @mcp.tool()
+@utf8_tool
 async def search_datasets(
     query: str,
     limit: int = 10
@@ -116,6 +181,7 @@ async def search_datasets(
 
 
 @mcp.tool()
+@utf8_tool
 async def get_dataset_overview(dataset_id: str) -> str:
     """
     📊 Get comprehensive dataset overview with all tables, columns, and BigQuery references.
@@ -233,6 +299,7 @@ async def get_dataset_overview(dataset_id: str) -> str:
 
 
 @mcp.tool()
+@utf8_tool
 async def get_table_details(table_id: str) -> str:
     """
     📋 Get detailed table information with all columns, types, and BigQuery access instructions.
@@ -344,6 +411,7 @@ async def get_table_details(table_id: str) -> str:
 
 
 @mcp.tool()
+@utf8_tool
 async def execute_bigquery_sql(
     query: str,
     max_results: int = 1000,
@@ -396,6 +464,7 @@ async def execute_bigquery_sql(
 
 
 @mcp.tool()
+@utf8_tool
 async def check_bigquery_status() -> str:
     """
     🔧 Check BigQuery authentication status and configuration.
