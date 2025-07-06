@@ -1,3 +1,4 @@
+LICENSE
 README.md
 pyproject.toml
 src/basedosdados_mcp/bigquery_client.py
@@ -12,3 +13,5 @@ src/basedosdados_mcp.egg-info/dependency_links.txt
 src/basedosdados_mcp.egg-info/entry_points.txt
 src/basedosdados_mcp.egg-info/requires.txt
 src/basedosdados_mcp.egg-info/top_level.txt
+tests/test_encoding_pytest.py
+tests/test_live_mcp_pytest.py

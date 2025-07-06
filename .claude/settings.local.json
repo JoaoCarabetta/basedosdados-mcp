@@ -25,7 +25,9 @@
       "Bash(unzip:*)",
       "Bash(mkdir:*)",
       "Bash(uv publish:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(mv:*)",
+      "Bash(pytest:*)"
     ],
     "deny": []
   }

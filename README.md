@@ -72,6 +72,54 @@ uv sync
 uv run basedosdados-mcp
 ```
 
+## 🧪 Testing
+
+Install development dependencies and run the comprehensive test suite:
+
+```bash
+# Install dev dependencies (includes pytest)
+uv sync --extra dev
+
+# Run all encoding tests
+pytest tests/ -v
+
+# Run specific test categories
+pytest tests/ -k "encoding" -v        # Encoding tests only
+pytest tests/ -k "live" -v            # Live server tests only
+pytest tests/ -m "not live" -v        # Skip live tests (faster)
+
+# Run with coverage
+pytest tests/ --cov=basedosdados_mcp --cov-report=html
+```
+
+### Test Structure
+
+The pytest-based test suite includes:
+
+- **`test_encoding_pytest.py`**: Core Portuguese character encoding tests
+  - UTF-8 encoding/decoding validation
+  - JSON serialization integrity
+  - MCP protocol compatibility
+  - Parametrized tests for individual Portuguese words
+
+- **`test_live_mcp_pytest.py`**: Live MCP server endpoint tests
+  - Real API response validation
+  - Backend API encoding verification
+  - Large response handling
+  - End-to-end encoding flow
+
+- **`conftest.py`**: Shared fixtures and pytest configuration
+  - Common test data and utilities
+  - Automatic test marking and organization
+
+### Encoding Validation
+
+**Portuguese characters tested**: `população`, `educação`, `saúde`, `região`, `satélites`, `políticas`, `públicas`, and 30+ more common Brazilian dataset terms.
+
+**Corruption patterns detected**: `Ã©`, `Ã¡`, `Ã­`, `Ã³`, `Ãº`, `Ã£`, `Ã§`, `Ã´`, `Ãª`, `Ã `, `Ãµ` (common UTF-8 corruption)
+
+If you experience encoding issues in Claude Desktop (e.g., seeing `satÃ©lites` instead of `satélites`), run the tests to verify the issue is in the display layer, not the MCP server itself.
+
 ## 📚 About
 
 [Base dos Dados](https://basedosdados.org) is Brazil's largest open data platform, providing standardized access to Brazilian public datasets through BigQuery.
