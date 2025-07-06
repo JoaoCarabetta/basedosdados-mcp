@@ -46,6 +46,11 @@ export ENVIRONMENT="development"
 export LOG_LEVEL="INFO"
 export PYTHONPATH="$PROJECT_DIR/src"
 
+# Force UTF-8 encoding to prevent Portuguese character corruption
+export PYTHONIOENCODING="utf-8"
+export LC_ALL="en_US.UTF-8"
+export LANG="en_US.UTF-8"
+
 # Log configuration status
 echo "🚀 Starting Base dos Dados MCP Server..." >&2
 echo "📊 BigQuery Configuration:" >&2

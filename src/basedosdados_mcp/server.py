@@ -1,7 +1,36 @@
 from typing import Optional
 import httpx
 import logging
+import sys
+import os
+import json
 from mcp.server.fastmcp import FastMCP
+
+# =============================================================================
+# Encoding Configuration
+# =============================================================================
+
+# Force UTF-8 encoding for stdout/stderr to prevent encoding issues in Claude Desktop
+# Set environment variables for UTF-8 support early
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+# Try to reconfigure stdout/stderr encoding if available (Python 3.7+)
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
+except (AttributeError, OSError):
+    # Fallback: Python doesn't support reconfigure or system doesn't support UTF-8
+    pass
+
+# =============================================================================
+# UTF-8 JSON Helper
+# =============================================================================
+
+def safe_json_dumps(obj):
+    """Safely serialize JSON with UTF-8 encoding preservation."""
+    return json.dumps(obj, ensure_ascii=False, indent=2)
 from basedosdados_mcp.graphql_client import make_graphql_request, DATASET_OVERVIEW_QUERY, TABLE_DETAILS_QUERY, ENHANCED_SEARCH_QUERY, COMPREHENSIVE_SEARCH_QUERY
 from basedosdados_mcp.utils import (
     clean_graphql_id, format_bigquery_reference, format_bigquery_reference_with_highlighting, format_sql_query_with_reference

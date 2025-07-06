@@ -27,7 +27,11 @@
       "Bash(uv publish:*)",
       "Bash(npx:*)",
       "Bash(mv:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(chmod:*)",
+      "Bash(find:*)",
+      "Bash(./dev_install.sh:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

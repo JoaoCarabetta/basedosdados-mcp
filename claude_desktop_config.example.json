@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "basedosdados": {
+      "comment": "Production Base dos Dados MCP server (via Smithery or manual install)",
+      "command": "basedosdados-mcp",
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/your/service-account.json",
+        "BIGQUERY_PROJECT_ID": "your-project-id",
+        "BIGQUERY_LOCATION": "US",
+        "PYTHONIOENCODING": "utf-8",
+        "LC_ALL": "en_US.UTF-8",
+        "LANG": "en_US.UTF-8"
+      }
+    },
+    "basedosdadosdev": {
+      "comment": "Development Base dos Dados MCP server (for live code reloading)",
+      "command": "/path/to/your/project/basedosdados_mcp/run_dev_server.sh",
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/your/service-account.json",
+        "BIGQUERY_PROJECT_ID": "your-project-id",
+        "BIGQUERY_LOCATION": "US",
+        "PYTHONIOENCODING": "utf-8",
+        "LC_ALL": "en_US.UTF-8",
+        "LANG": "en_US.UTF-8"
+      }
+    }
+  }
+}

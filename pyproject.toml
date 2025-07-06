@@ -50,7 +50,15 @@ dev = [
     "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
+    "pre-commit>=3.0.0",
 ]
+
+# Editable installation support
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"basedosdados_mcp" = ["py.typed"]
 
 [project.scripts]
 basedosdados-mcp = "basedosdados_mcp.main:main"

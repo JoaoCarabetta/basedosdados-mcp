@@ -65,12 +65,46 @@ Restart Claude Desktop and you are good to go!
 
 ## 🔧 Development
 
+### Quick Development Setup
+
+Set up the MCP server for local development with live code reloading:
+
 ```bash
 git clone https://github.com/JoaoCarabetta/basedosdados-mcp
 cd basedosdados-mcp
-uv sync
-uv run basedosdados-mcp
+./dev_install.sh
 ```
+
+This script will:
+- ✅ Install all dependencies in development mode
+- ✅ Create a development wrapper script with live reloading
+- ✅ Configure Claude Desktop with `basedosdadosdev` server
+- ✅ Set up proper environment variables and paths
+
+### Manual Development Setup
+
+If you prefer manual setup:
+
+```bash
+# Clone and install dependencies
+git clone https://github.com/JoaoCarabetta/basedosdados-mcp
+cd basedosdados-mcp
+uv sync --extra dev
+
+# Run development server
+uv run basedosdados-mcp-dev
+
+# Or test directly
+./run_dev_server.sh
+```
+
+### Development Features
+
+- **🔄 Live Code Reloading**: Changes to `src/` are reflected immediately
+- **🐛 Debug Logging**: Enhanced logging for development
+- **🧪 Full Test Suite**: Comprehensive pytest-based tests
+- **🎯 Separate Server**: `basedosdadosdev` server in Claude Desktop
+- **⚡ Fast Development**: No need to reinstall after code changes
 
 ## 🧪 Testing
 
