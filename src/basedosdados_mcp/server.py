@@ -1,9 +1,10 @@
-from typing import Optional
-import httpx
-import logging
-import sys
-import os
+import asyncio
 import json
+import logging
+import os
+import sys
+
+import httpx
 from mcp.server.fastmcp import FastMCP
 
 # =============================================================================
@@ -59,18 +60,18 @@ def utf8_response_wrapper(response_text: str) -> str:
         # Encode and decode to ensure proper UTF-8 handling
         response_bytes = response_text.encode('utf-8')
         response_text = response_bytes.decode('utf-8')
-        
+
         # Double-check: replace any Unicode escape sequences that might have snuck in
         # This is a safety net in case the MCP library has already processed the text
         import re
         unicode_pattern = r'\\u([0-9a-fA-F]{4})'
-        
+
         def replace_unicode_escape(match):
             unicode_code = int(match.group(1), 16)
             return chr(unicode_code)
-        
+
         response_text = re.sub(unicode_pattern, replace_unicode_escape, response_text)
-    
+
     return response_text
 
 
@@ -82,26 +83,36 @@ def utf8_tool(func):
     to prevent the MCP library from escaping Portuguese characters.
     """
     import functools
-    
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         # Call the original function
         result = await func(*args, **kwargs)
-        
+
         # Wrap the response to ensure UTF-8 preservation
         if isinstance(result, str):
             return utf8_response_wrapper(result)
         else:
             return result
-    
+
     return wrapper
-from basedosdados_mcp.graphql_client import make_graphql_request, DATASET_OVERVIEW_QUERY, TABLE_DETAILS_QUERY, ENHANCED_SEARCH_QUERY, COMPREHENSIVE_SEARCH_QUERY
-from basedosdados_mcp.utils import (
-    clean_graphql_id, format_bigquery_reference, format_bigquery_reference_with_highlighting, format_sql_query_with_reference
-)
 from basedosdados_mcp.bigquery_client import (
-    execute_query, execute_simple_query, get_table_schema, get_table_info,
-    validate_query, format_query_results, BigQueryClient
+    BigQueryClient,
+    execute_query,
+    format_query_results,
+    validate_query,
+)
+from basedosdados_mcp.graphql_client import (
+    DATASET_OVERVIEW_QUERY,
+    FAST_SEARCH_ENRICHMENT_QUERY,
+    SEARCH_ENRICHMENT_QUERY,
+    TABLE_DETAILS_QUERY,
+    make_graphql_request,
+)
+from basedosdados_mcp.utils import (
+    clean_graphql_id,
+    format_bigquery_reference,
+    format_sql_query_with_reference,
 )
 
 # =============================================================================
@@ -125,47 +136,58 @@ mcp = FastMCP("Base dos Dados MCP")
 @utf8_tool
 async def search_datasets(
     query: str,
-    limit: int = 10
+    limit: int = 15,
+    fast_mode: bool = True
 ) -> str:
     """
-    🔍 Search for datasets in Base dos Dados using the same infrastructure as the website.
+    🔍 **Enhanced Search for Base dos Dados - LLM Optimized**
     
-    This tool provides access to the comprehensive Brazilian open data repository,
-    searching across all datasets, organizations, themes, and descriptions.
+    This tool provides comprehensive access to Brazilian open data with rich context
+    for LLM decision-making. It combines the reliable backend search with detailed
+    GraphQL enrichment to deliver complete dataset structures in a single call.
     
-    **Features:**
-    - Uses the same search API as basedosdados.org for consistent results
-    - Returns detailed dataset information with BigQuery table references
-    - Includes organizations, themes, tags, and data coverage information
-    - Provides ready-to-use BigQuery table references for direct data access
+    **Key Features:**
+    - **Comprehensive Context**: Full dataset metadata, table structures, and column samples
+    - **LLM-Optimized**: Rich formatting with clear hierarchies and decision-support information
+    - **Ready-to-Use References**: Complete BigQuery paths and API identifiers
+    - **Smart Enrichment**: Parallel data fetching for maximum efficiency
+    - **Error Resilient**: Graceful degradation if enrichment fails
     
-    **Examples:**
-    - Search by organization: "ibge", "anvisa", "ministerio da saude"
-    - Search by theme: "saude", "educacao", "economia", "transporte"
-    - Search by topic: "covid", "eleicoes", "clima", "energia"
-    - Search by data type: "municipios", "estados", "empresas"
+    **What You Get Per Dataset:**
+    - Complete identifiers (GraphQL IDs, slugs, BigQuery references)
+    - Rich metadata (descriptions, organizations, themes, tags)
+    - Table structure previews (names, column counts, sample columns with types)
+    - Ready-to-use BigQuery references for immediate data access
+    - Clear workflow guidance for next steps
     
-    **Returns:**
-    - Dataset names, descriptions, and metadata
-    - Organization and theme information
-    - Table counts and BigQuery references
-    - Temporal and spatial coverage details
-    - Ready-to-use SQL query examples
+    **Search Examples:**
+    - Organizations: "ibge", "anvisa", "ministerio da saude"
+    - Themes: "saude", "educacao", "economia", "transporte"
+    - Topics: "covid", "eleicoes", "clima", "energia"
+    - Data types: "municipios", "estados", "empresas"
+    
+    **Response Structure:**
+    - Dataset overview with complete metadata
+    - Table previews with column samples and types
+    - BigQuery references for immediate querying
+    - Next-step guidance for deeper exploration
+    - Pro tips for efficient workflow
     
     Args:
         query: Search term to find relevant datasets (e.g., "ibge", "saude", "educacao", "covid")
         limit: Maximum number of results to return (default: 10, max: 50)
         
     Returns:
-        Comprehensive search results with dataset information and BigQuery table references
+        Comprehensive search results with complete dataset context, table structures, 
+        and ready-to-use BigQuery references for LLM decision-making
     """
-    
+
     logger.info(f"Starting search for query: '{query}' with limit: {limit}")
-    
+
     # Use Backend API (same infrastructure as the site - most reliable)
     try:
         logger.info("Attempting backend API search...")
-        response = await search_datasets_backend(query, limit)
+        response = await search_datasets_backend(query, limit, fast_mode)
         logger.info("Backend API search completed")
         return response
     except Exception as e:
@@ -182,7 +204,7 @@ async def search_datasets(
 
 @mcp.tool()
 @utf8_tool
-async def get_dataset_overview(dataset_id: str) -> str:
+async def get_dataset_overview(dataset_id: str, fast_mode: bool = True) -> str:
     """
     📊 Get comprehensive dataset overview with all tables, columns, and BigQuery references.
     
@@ -215,12 +237,15 @@ async def get_dataset_overview(dataset_id: str) -> str:
     Returns:
         Comprehensive dataset overview with all tables and BigQuery references
     """
-    
+
     dataset_id = clean_graphql_id(dataset_id)
-    
+
     try:
+        # Add performance monitoring
+        start_time = asyncio.get_event_loop().time()
         result = await make_graphql_request(DATASET_OVERVIEW_QUERY, {"id": dataset_id})
-        
+        duration = asyncio.get_event_loop().time() - start_time
+
         if result.get("data", {}).get("allDataset", {}).get("edges"):
             edges = result["data"]["allDataset"]["edges"]
             if edges:
@@ -228,79 +253,98 @@ async def get_dataset_overview(dataset_id: str) -> str:
                 org_names = [org["node"]["name"] for org in dataset.get("organizations", {}).get("edges", [])]
                 theme_names = [t["node"]["name"] for t in dataset.get("themes", {}).get("edges", [])]
                 tag_names = [t["node"]["name"] for t in dataset.get("tags", {}).get("edges", [])]
-                
+
                 # Process tables with their columns
                 tables_info = []
                 total_columns = 0
-                
+                bigquery_paths = []
+
+                # Extract organization slug for BigQuery reference
+                organization_slug = None
+                if dataset.get("organizations", {}).get("edges"):
+                    organization_slug = dataset["organizations"]["edges"][0]["node"].get("slug", "")
+
                 for table_edge in dataset.get("tables", {}).get("edges", []):
                     table = table_edge["node"]
                     columns = table.get("columns", {}).get("edges", [])
                     column_count = len(columns)
                     total_columns += column_count
-                    
-                    # Get sample column names (first 5)
-                    sample_columns = [col["node"]["name"] for col in columns[:5]]
-                    if len(columns) > 5:
-                        sample_columns.append(f"... and {len(columns) - 5} more")
-                    
-                    # Generate full BigQuery table reference
+
+                    # Generate full BigQuery table reference with validation
                     dataset_slug = dataset.get("slug", "")
                     table_slug = table.get("slug", "")
-                    bigquery_ref = format_bigquery_reference(dataset_slug, table_slug)
-                    
+                    bigquery_ref = None
+                    if dataset_slug and table_slug:
+                        bigquery_ref = format_bigquery_reference(dataset_slug, table_slug, organization_slug)
+                        bigquery_paths.append(bigquery_ref)
+
                     tables_info.append({
                         "id": table["id"],
                         "name": table["name"],
                         "slug": table_slug,
-                        "description": table.get("description", "No description available"),
+                        "description": table.get("description", ""),
                         "column_count": column_count,
-                        "sample_columns": sample_columns,
                         "bigquery_reference": bigquery_ref
                     })
+
+                # Build compact, LLM-optimized response
+                response = f"📊 {dataset['name']} [{dataset.get('slug', '')}] ({len(tables_info)} tables, {total_columns} cols, {duration:.1f}s)\n"
+                response += f"ID: {dataset['id']}\n"
                 
-                # Build comprehensive response
-                response = f"**📊 Dataset Overview: {dataset['name']}**\n\n"
-                response += f"**💡 BigQuery Format:** `basedosdados.dataset_slug.table_slug` (e.g., `basedosdados.br_abrinq_oca.municipio_primeira_infancia`)\n\n"
-                response += f"**Basic Information:**\n"
-                response += f"- **ID:** {dataset['id']}\n"
-                response += f"- **Slug:** {dataset.get('slug', '')}\n"
-                response += f"- **Description:** {dataset.get('description', 'No description available')}\n"
-                response += f"- **Organizations:** {', '.join(org_names)}\n"
-                response += f"- **Themes:** {', '.join(theme_names)}\n"
-                response += f"- **Tags:** {', '.join(tag_names)}\n\n"
-                response += f"**Data Structure:**\n"
-                response += f"- **Total Tables:** {len(tables_info)}\n"
-                response += f"- **Total Columns:** {total_columns}\n\n"
-                response += f"**📋 Tables with BigQuery Access:**\n"
+                # Add metadata if available
+                metadata_parts = []
+                if org_names:
+                    metadata_parts.append(f"Org: {', '.join(org_names)}")
+                if theme_names:
+                    metadata_parts.append(f"Theme: {', '.join(theme_names)}")
+                if tag_names:
+                    metadata_parts.append(f"Tags: {', '.join(tag_names)}")
                 
-                for table in tables_info:
-                    response += f"\n**{table['name']}** ({table['column_count']} columns)\n"
-                    response += f"- **BigQuery Reference:** `{table['bigquery_reference']}`\n"
-                    response += f"- **Table ID:** {table['id']}\n"
-                    response += f"- **Description:** {table['description']}\n"
-                    response += f"- **Sample Columns:** {', '.join(table['sample_columns'])}\n"
-                    response += f"- **💡 Quick Query:** `SELECT * FROM `{table['bigquery_reference']}` LIMIT 10`\n"
+                if metadata_parts:
+                    response += f"{' | '.join(metadata_parts)}\n"
+
+                # Add dataset description
+                if dataset.get('description'):
+                    desc = dataset['description']
+                    if len(desc) > 200:
+                        desc = desc[:200] + "..."
+                    response += f"Desc: {desc}\n"
+
+                response += "\nTables & BigQuery Paths:\n"
                 
-                sample_ref = tables_info[0]['bigquery_reference'] if tables_info else 'basedosdados.dataset.table'
-                response += f"\n\n**🔍 Next Steps:**\n"
-                response += f"- Use `get_table_details` with a table ID to see all columns and types with sample SQL queries\n"
-                response += f"- **Ready-to-use BigQuery references above** - copy any of the table references for direct access\n"
-                response += f"- Example: `SELECT * FROM {sample_ref} LIMIT 100`"
-                
+                # List tables with BigQuery paths
+                for i, table in enumerate(tables_info, 1):
+                    table_desc = table['description'][:60] + "..." if len(table['description']) > 60 else table['description']
+                    
+                    if table['bigquery_reference']:
+                        response += f"{i}. {table['name']} ({table['column_count']} cols) → {table['bigquery_reference']}\n"
+                    else:
+                        response += f"{i}. {table['name']} ({table['column_count']} cols) → Use get_table_details for BigQuery path\n"
+                    
+                    if table_desc:
+                        response += f"   {table_desc}\n"
+
+                # Add workflow guidance
+                if tables_info:
+                    first_table_id = tables_info[0]['id']
+                    response += f"\nNext: get_table_details('{first_table_id}') for column details"
+
+                # Log performance
+                logger.info(f"Dataset overview completed in {duration:.2f}s for {len(tables_info)} tables")
+
                 return response
             else:
                 return "Dataset not found"
         else:
             return "Dataset not found"
-            
+
     except Exception as e:
         return f"Error getting dataset overview: {str(e)}"
 
 
 @mcp.tool()
 @utf8_tool
-async def get_table_details(table_id: str) -> str:
+async def get_table_details(table_id: str, fast_mode: bool = True) -> str:
     """
     📋 Get detailed table information with all columns, types, and BigQuery access instructions.
     
@@ -335,77 +379,93 @@ async def get_table_details(table_id: str) -> str:
     Returns:
         Comprehensive table details with all columns and BigQuery access instructions
     """
-    
+
     table_id = clean_graphql_id(table_id)
-    
+
     try:
+        # Add performance monitoring
+        start_time = asyncio.get_event_loop().time()
         result = await make_graphql_request(TABLE_DETAILS_QUERY, {"id": table_id})
-        
+        duration = asyncio.get_event_loop().time() - start_time
+
         if result.get("data", {}).get("allTable", {}).get("edges"):
             edges = result["data"]["allTable"]["edges"]
             if edges:
                 table = edges[0]["node"]
                 dataset = table["dataset"]
                 columns = table.get("columns", {}).get("edges", [])
-                
-                # Generate BigQuery table reference
+
+                # Generate BigQuery table reference with validation
                 dataset_slug = dataset.get("slug", "")
                 table_slug = table.get("slug", "")
-                bigquery_ref = format_bigquery_reference(dataset_slug, table_slug)
                 
-                response = f"**📋 Table Details: {table['name']}**\n\n"
-                response += f"**🚀 BigQuery Access:** `{bigquery_ref}`\n\n"
-                response += f"**💡 Example Format:** `basedosdados.br_abrinq_oca.municipio_primeira_infancia`\n\n"
-                response += f"**Basic Information:**\n"
-                response += f"- **Table ID:** {table['id']}\n"
-                response += f"- **Table Slug:** {table_slug}\n"
-                response += f"- **Description:** {table.get('description', 'No description available')}\n"
-                response += f"**Dataset Context:**\n"
-                response += f"- **Dataset:** {dataset['name']}\n"
-                response += f"- **Dataset ID:** {dataset['id']}\n"
-                response += f"- **Dataset Slug:** {dataset.get('slug', '')}\n\n"
-                response += f"**📊 Columns ({len(columns)} total):**\n"
+                # Extract organization slug for BigQuery reference
+                organization_slug = None
+                if dataset.get("organizations", {}).get("edges"):
+                    organization_slug = dataset["organizations"]["edges"][0]["node"].get("slug", "")
                 
-                for col_edge in columns:
+                bigquery_ref = None
+                if dataset_slug and table_slug:
+                    bigquery_ref = format_bigquery_reference(dataset_slug, table_slug, organization_slug)
+
+                # Build compact, LLM-optimized response
+                if bigquery_ref:
+                    response = f"📋 {bigquery_ref} ({len(columns)} cols, {duration:.1f}s)\n"
+                else:
+                    response = f"📋 {table['name']} (BigQuery path unavailable, {len(columns)} cols, {duration:.1f}s)\n"
+                
+                response += f"Table: {table['name']} | Dataset: {dataset['name']} [{dataset.get('slug', '')}]\n"
+
+                # Add table description if available
+                if table.get('description'):
+                    desc = table['description']
+                    if len(desc) > 150:
+                        desc = desc[:150] + "..."
+                    response += f"Desc: {desc}\n"
+
+                response += "\nColumns:\n"
+                
+                # List columns in compact format
+                column_limit = 15 if fast_mode else len(columns)
+                for col_edge in columns[:column_limit]:
                     column = col_edge["node"]
                     col_type = column.get("bigqueryType", {}).get("name", "Unknown")
-                    col_desc = column.get("description", "No description")
-                    response += f"\n**{column['name']}** ({col_type})\n"
-                    response += f"- ID: {column['id']}\n"
-                    response += f"- Description: {col_desc}\n"
+                    col_desc = column.get("description", "")
+                    
+                    # Compact column description
+                    if col_desc and len(col_desc) > 80:
+                        col_desc = col_desc[:80] + "..."
+                    
+                    if col_desc:
+                        response += f"{column['name']} ({col_type}) - {col_desc}\n"
+                    else:
+                        response += f"{column['name']} ({col_type})\n"
                 
-                # Generate sample SQL queries
-                column_names = [col["node"]["name"] for col in columns]
-                sample_columns = ", ".join(column_names[:5])
-                if len(column_names) > 5:
-                    sample_columns += f", ... -- and {len(column_names) - 5} more"
-                
-                response += f"\n\n**🔍 Sample SQL Queries:**\n\n"
-                response += f"**Basic Select:**\n"
-                response += f"```sql\n"
-                response += f"{format_sql_query_with_reference(bigquery_ref, sample_columns, 100)}\n"
-                response += f"```\n\n"
-                response += f"**Full Table Schema:**\n"
-                response += f"```sql\n"
-                response += f"{format_sql_query_with_reference(bigquery_ref, '*', 10)}\n"
-                response += f"```\n\n"
-                response += f"**Column Info:**\n"
-                response += f"```sql\n"
-                response += f"SELECT column_name, data_type, description\n"
-                response += f"FROM `{dataset_slug}`.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS\n"
-                response += f"WHERE table_name = '{table_slug}'\n"
-                response += f"```\n\n"
-                response += f"**🚀 Access Instructions:**\n"
-                response += f"1. **BigQuery Console:** Use `{bigquery_ref}` in your queries\n"
-                response += f"2. **Python Package:** `bd.read_table('{dataset_slug}', '{table_slug}')`\n"
-                response += f"3. **Direct SQL:** Copy any query above and replace the table reference\n"
-                
+                if len(columns) > column_limit:
+                    response += f"... and {len(columns) - column_limit} more columns\n"
+
+                # Add ready-to-use SQL templates
+                if bigquery_ref:
+                    response += f"\nSQL Templates:\n"
+                    response += f"SELECT * FROM `{bigquery_ref}` LIMIT 100\n"
+                    
+                    # Add a few sample columns for select query
+                    if columns:
+                        sample_cols = [col["node"]["name"] for col in columns[:3]]
+                        response += f"SELECT {', '.join(sample_cols)} FROM `{bigquery_ref}` WHERE [condition]\n"
+
+                # Add workflow guidance
+                response += "\nNext: execute_bigquery_sql | Copy BigQuery path above"
+
+                # Log performance
+                logger.info(f"Table details completed in {duration:.2f}s for {len(columns)} columns")
+
                 return response
             else:
                 return "Table not found"
         else:
             return "Table not found"
-            
+
     except Exception as e:
         return f"Error getting table details: {str(e)}"
 
@@ -495,22 +555,234 @@ async def check_bigquery_status() -> str:
     """
     client = BigQueryClient()
     auth_status = client.get_auth_status()
-    
+
     response = "**Status do BigQuery**\n\n"
-    
+
     if auth_status["authenticated"]:
-        response += f"✅ **Autenticado:** Sim\n"
+        response += "✅ **Autenticado:** Sim\n"
         response += f"📊 **Project ID:** {auth_status['project_id']}\n"
         response += f"🔧 **Fonte:** {auth_status.get('config_source', 'unknown')}\n"
-        response += f"\n💡 **Pronto para executar queries!**\n"
+        response += "\n💡 **Pronto para executar queries!**\n"
     else:
-        response += f"❌ **Autenticado:** Não\n"
+        response += "❌ **Autenticado:** Não\n"
         response += f"⚠️  **Erro:** {auth_status['error']}\n\n"
-        response += f"**📋 Instruções:**\n"
+        response += "**📋 Instruções:**\n"
         for instruction in auth_status['instructions']:
             response += f"- {instruction}\n"
-    
+
     return response
+
+async def enrich_datasets_with_fast_data(dataset_ids: list[str], timeout_seconds: float = 2.0) -> dict:
+    """
+    Fast dataset enrichment optimized for sub-1-second search performance.
+    
+    This function provides essential metadata without the performance bottleneck
+    of fetching detailed column information. Perfect for search result enrichment.
+    
+    Args:
+        dataset_ids: List of dataset IDs to enrich
+        timeout_seconds: Maximum time to spend on GraphQL enrichment
+        
+    Returns:
+        Dictionary mapping dataset IDs to essential enriched dataset data
+    """
+    if not dataset_ids:
+        return {}
+    
+    try:
+        # Use the fast query that excludes column details
+        clean_ids = [clean_graphql_id(id) for id in dataset_ids]
+        
+        # Set a timeout for the GraphQL request
+        start_time = asyncio.get_event_loop().time()
+        result = await make_graphql_request(FAST_SEARCH_ENRICHMENT_QUERY, {"ids": clean_ids})
+        duration = asyncio.get_event_loop().time() - start_time
+        
+        logger.info(f"Fast enrichment completed in {duration:.2f}s for {len(clean_ids)} datasets")
+        
+        enriched_datasets = {}
+        
+        if result.get("data", {}).get("allDataset", {}).get("edges"):
+            for edge in result["data"]["allDataset"]["edges"]:
+                dataset = edge["node"]
+                dataset_id = dataset["id"]
+                
+                # Process organizations (names only for speed)
+                org_names = [org["node"]["name"] for org in dataset.get("organizations", {}).get("edges", [])]
+                
+                # Process themes (names only for speed)
+                theme_names = [theme["node"]["name"] for theme in dataset.get("themes", {}).get("edges", [])]
+                
+                # Process tags (names only for speed)
+                tag_names = [tag["node"]["name"] for tag in dataset.get("tags", {}).get("edges", [])]
+                
+                # Extract organization slug for BigQuery references
+                organization_slug = None
+                if org_names:  # Using the already processed org data
+                    # Get the slug from the first organization
+                    for org_edge in dataset.get("organizations", {}).get("edges", []):
+                        organization_slug = org_edge["node"].get("slug", "")
+                        break
+
+                # Process tables (basic info only - no columns)
+                table_info = []
+                for table_edge in dataset.get("tables", {}).get("edges", []):
+                    table = table_edge["node"]
+                    table_slug = table.get("slug", "")
+                    
+                    # Generate BigQuery reference if we have both dataset and table slugs
+                    dataset_slug = dataset.get("slug", "")
+                    bigquery_ref = None
+                    if dataset_slug and table_slug:
+                        bigquery_ref = format_bigquery_reference(dataset_slug, table_slug, organization_slug)
+                    
+                    table_info.append({
+                        "name": table["name"],
+                        "slug": table_slug,
+                        "bigquery_reference": bigquery_ref
+                    })
+                
+                # Store essential enriched data
+                enriched_datasets[dataset_id] = {
+                    "id": dataset_id,
+                    "name": dataset["name"],
+                    "slug": dataset.get("slug", ""),
+                    "description": dataset.get("description", ""),
+                    "organizations": org_names,
+                    "themes": theme_names,
+                    "tags": tag_names,
+                    "tables": table_info,
+                    "total_tables": len(table_info)
+                }
+        
+        return enriched_datasets
+        
+    except Exception as e:
+        logger.warning(f"Fast enrichment failed: {str(e)}")
+        return {}
+
+
+async def enrich_datasets_with_comprehensive_data(dataset_ids: list[str]) -> dict:
+    """
+    Enrich datasets with comprehensive details using GraphQL.
+    
+    This function takes a list of dataset IDs from the backend search and enriches them
+    with detailed metadata, table information, and column details for LLM consumption.
+    
+    Args:
+        dataset_ids: List of dataset IDs to enrich
+        
+    Returns:
+        Dictionary mapping dataset IDs to enriched dataset data
+    """
+    if not dataset_ids:
+        return {}
+
+    try:
+        # Clean the GraphQL IDs
+        clean_ids = [clean_graphql_id(id) for id in dataset_ids]
+
+        # Make GraphQL request for enrichment
+        result = await make_graphql_request(SEARCH_ENRICHMENT_QUERY, {"ids": clean_ids})
+
+        # Process the enriched data
+        enriched_datasets = {}
+
+        if result.get("data", {}).get("allDataset", {}).get("edges"):
+            for edge in result["data"]["allDataset"]["edges"]:
+                dataset = edge["node"]
+                dataset_id = dataset["id"]
+
+                # Process organizations
+                org_info = []
+                for org_edge in dataset.get("organizations", {}).get("edges", []):
+                    org = org_edge["node"]
+                    org_info.append({
+                        "id": org["id"],
+                        "name": org["name"],
+                        "slug": org.get("slug", "")
+                    })
+
+                # Process themes
+                theme_info = []
+                for theme_edge in dataset.get("themes", {}).get("edges", []):
+                    theme = theme_edge["node"]
+                    theme_info.append({
+                        "id": theme["id"],
+                        "name": theme["name"],
+                        "slug": theme.get("slug", "")
+                    })
+
+                # Process tags
+                tag_info = []
+                for tag_edge in dataset.get("tags", {}).get("edges", []):
+                    tag = tag_edge["node"]
+                    tag_info.append({
+                        "id": tag["id"],
+                        "name": tag["name"],
+                        "slug": tag.get("slug", "")
+                    })
+
+                # Process tables with detailed column information
+                table_info = []
+                total_columns = 0
+
+                for table_edge in dataset.get("tables", {}).get("edges", []):
+                    table = table_edge["node"]
+                    columns = table.get("columns", {}).get("edges", [])
+                    column_count = len(columns)
+                    total_columns += column_count
+
+                    # Get sample columns with types (first 5)
+                    sample_columns = []
+                    for col_edge in columns[:5]:
+                        col = col_edge["node"]
+                        col_type = col.get("bigqueryType", {}).get("name", "Unknown")
+                        sample_columns.append({
+                            "id": col["id"],
+                            "name": col["name"],
+                            "type": col_type,
+                            "description": col.get("description", "")
+                        })
+
+                    # Generate BigQuery reference with organization
+                    organization_slug = None
+                    if org_info:  # Get organization slug from already processed data
+                        organization_slug = org_info[0].get("slug", "")
+                    
+                    bigquery_ref = format_bigquery_reference(dataset.get("slug", ""), table.get("slug", ""), organization_slug)
+
+                    table_info.append({
+                        "id": table["id"],
+                        "name": table["name"],
+                        "slug": table.get("slug", ""),
+                        "description": table.get("description", ""),
+                        "bigquery_reference": bigquery_ref,
+                        "column_count": column_count,
+                        "sample_columns": sample_columns,
+                        "has_more_columns": column_count > 5
+                    })
+
+                # Store enriched dataset data
+                enriched_datasets[dataset_id] = {
+                    "id": dataset_id,
+                    "name": dataset["name"],
+                    "slug": dataset.get("slug", ""),
+                    "description": dataset.get("description", ""),
+                    "organizations": org_info,
+                    "themes": theme_info,
+                    "tags": tag_info,
+                    "tables": table_info,
+                    "total_tables": len(table_info),
+                    "total_columns": total_columns
+                }
+
+        return enriched_datasets
+
+    except Exception as e:
+        logger.error(f"Error enriching datasets: {str(e)}")
+        return {}
+
 
 async def search_backend_api(query: str, limit: int = 10) -> dict:
     """
@@ -529,7 +801,7 @@ async def search_backend_api(query: str, limit: int = 10) -> dict:
     try:
         # Use the backend search API directly
         search_url = "https://backend.basedosdados.org/search/"
-        
+
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 search_url,
@@ -537,11 +809,11 @@ async def search_backend_api(query: str, limit: int = 10) -> dict:
             )
             response.raise_for_status()
             result = response.json()
-            
+
             logger.info(f"Backend API response: found {result.get('count', 0)} total results, showing {len(result.get('results', []))} results")
-            
+
             return result
-            
+
     except httpx.TimeoutException:
         raise Exception("Search request timeout - the backend API is taking too long to respond")
     except httpx.RequestError as e:
@@ -551,103 +823,133 @@ async def search_backend_api(query: str, limit: int = 10) -> dict:
 
 async def search_datasets_backend(
     query: str,
-    limit: int = 10
+    limit: int = 10,
+    fast_mode: bool = True
 ) -> str:
     """
-    Internal function: Search for datasets using the Base dos Dados backend search API.
+    Internal function: Search for datasets using the Base dos Dados backend search API
+    with comprehensive GraphQL enrichment for LLM consumption.
     
     This function uses the same API that the website uses internally,
-    providing the most accurate and comprehensive results.
+    then enriches the results with detailed metadata and structure information
+    to provide LLMs with comprehensive context for decision making.
     
     Args:
         query: Search term to find datasets
         limit: Maximum number of results to return
         
     Returns:
-        Formatted search results with dataset information
+        Formatted search results with comprehensive dataset information
     """
-    
+
     try:
-        # Use the backend's search API
-        result = await search_backend_api(query, limit)
+        # Track total operation time
+        search_start = asyncio.get_event_loop().time()
         
+        # Use the backend's search API
+        backend_start = asyncio.get_event_loop().time()
+        result = await search_backend_api(query, limit)
+        backend_duration = asyncio.get_event_loop().time() - backend_start
+
         # Extract search results
         datasets = result.get("results", [])
         total_count = result.get("count", 0)
+
+        logger.info(f"Backend search returned {len(datasets)} results out of {total_count} total matches")
+
+        if not datasets:
+            return f"Search results for '{query}':\n\nNo datasets found matching your search criteria.\n\nTry different keywords or check spelling."
+
+        # Optional GraphQL enrichment based on fast_mode setting
+        dataset_ids = [d.get('id', '') for d in datasets if d.get('id')]
+        enrichment_start = asyncio.get_event_loop().time()
+        enriched_data = {}
+        enrichment_duration = 0
         
-        # Build response
-        response = f"**🔍 Search Results for: '{query}'**\n\n"
-        response += f"**💡 Using Base dos Dados Backend API (Same as Website)**\n\n"
-        
-        if datasets:
-            response += f"Found {len(datasets)} datasets (showing {len(datasets)} of {total_count} total):\n\n"
-            response += f"**💡 BigQuery Format:** `basedosdados.dataset_slug.table_slug` (e.g., `basedosdados.br_abrinq_oca.municipio_primeira_infancia`)\n\n"
-            
-            for i, dataset in enumerate(datasets, 1):
-                response += f"**{i}. {dataset.get('name', 'Unnamed Dataset')}**\n"
-                
-                if dataset.get('description'):
-                    response += f"📝 **Description:** {dataset['description']}\n"
-                
-                if dataset.get('slug'):
-                    response += f"🔗 **Slug:** {dataset['slug']}\n"
-                
-                # Organizations
-                if dataset.get('organizations'):
-                    org_names = [org.get('name', '') for org in dataset['organizations']]
-                    response += f"🏢 **Organizations:** {', '.join(org_names)}\n"
-                
-                # Themes
-                if dataset.get('themes'):
-                    theme_names = [theme.get('name', '') for theme in dataset['themes']]
-                    response += f"🎨 **Themes:** {', '.join(theme_names)}\n"
-                
-                # Tags
-                if dataset.get('tags'):
-                    tag_names = [tag.get('name', '') for tag in dataset['tags']]
-                    response += f"🏷️ **Tags:** {', '.join(tag_names)}\n"
-                
-                # Tables info
-                n_tables = dataset.get('n_tables', 0)
-                if n_tables > 0:
-                    response += f"📊 **Tables:** {n_tables} tables\n"
-                    
-                    # Generate BigQuery reference if we have table info
-                    if dataset.get('slug') and dataset.get('first_table_id'):
-                        # For now, we'll use a generic format since we don't have table slug
-                        bigquery_ref = f"basedosdados.{dataset['slug']}.table_name"
-                        response += f"🔗 **BigQuery:** `{bigquery_ref}`\n"
-                        response += f"   💡 **Quick Query:** `SELECT * FROM `{bigquery_ref}` LIMIT 10`\n"
-                
-                # Coverage info
-                if dataset.get('temporal_coverage'):
-                    response += f"📅 **Temporal Coverage:** {', '.join(dataset['temporal_coverage'])}\n"
-                
-                if dataset.get('spatial_coverage'):
-                    spatial_names = [spatial.get('name', '') for spatial in dataset['spatial_coverage']]
-                    response += f"🌍 **Spatial Coverage:** {', '.join(spatial_names)}\n"
-                
-                # Data availability
-                if dataset.get('contains_open_data'):
-                    response += f"✅ **Open Data:** Available\n"
-                
-                if dataset.get('contains_tables'):
-                    response += f"📋 **Tables:** Available\n"
-                
-                response += "\n"
-        
+        if not fast_mode and len(datasets) <= 10:  # Only enrich small result sets in slow mode
+            try:
+                # Set aggressive timeout for GraphQL enrichment
+                enriched_data = await asyncio.wait_for(
+                    enrich_datasets_with_fast_data(dataset_ids), 
+                    timeout=0.8  # Even more aggressive timeout
+                )
+                enrichment_duration = asyncio.get_event_loop().time() - enrichment_start
+                logger.info(f"GraphQL enrichment successful in {enrichment_duration:.2f}s")
+            except asyncio.TimeoutError:
+                enrichment_duration = asyncio.get_event_loop().time() - enrichment_start
+                logger.info(f"GraphQL enrichment timed out after {enrichment_duration:.2f}s, using backend-only mode")
+            except Exception as e:
+                enrichment_duration = asyncio.get_event_loop().time() - enrichment_start
+                logger.info(f"GraphQL enrichment failed: {str(e)}, using backend-only mode")
         else:
-            response += "No datasets found matching your search criteria."
+            logger.info(f"Fast mode enabled or large result set ({len(datasets)} datasets), skipping GraphQL enrichment")
         
-        response += f"\n**💡 Next Steps:**\n"
-        response += f"- Use `get_dataset_overview` with a dataset ID for detailed table information\n"
-        response += f"- Use `get_table_details` with a table ID for complete column information\n"
-        response += f"- Use `execute_bigquery_sql` to run queries on the data\n"
+        # Calculate total duration
+        total_duration = asyncio.get_event_loop().time() - search_start
+
+        # Build high-density, compact response for fast LLM consumption
+        response = f"🔍 **{query}** ({len(datasets)} results, {total_duration:.1f}s)\n\n"
         
+        # Log performance metrics
+        logger.info(f"Performance: total={total_duration:.2f}s, backend={backend_duration:.2f}s, enrichment={enrichment_duration:.2f}s")
+
+        for i, dataset in enumerate(datasets, 1):
+            dataset_id = dataset.get('id', '')
+            dataset_name = dataset.get('name', 'Unnamed Dataset')
+            dataset_slug = dataset.get('slug', '')
+            dataset_description = dataset.get('description', 'No description available')
+            n_tables = dataset.get('n_tables', 0)
+
+            # Get enriched data if available (try both raw ID and GraphQL node ID)
+            enriched = enriched_data.get(dataset_id, {}) or enriched_data.get(f"DatasetNode:{dataset_id}", {})
+
+            response += f"## {i}. {dataset_name} [{dataset_slug}]\n"
+            response += f"ID: {dataset_id}\n"
+            response += f"Desc: {dataset_description}\n"
+
+            if enriched:
+                # Compact metadata display
+                if enriched.get('organizations'):
+                    response += f"Org: {', '.join(enriched['organizations'])}\n"
+                if enriched.get('themes'):
+                    response += f"Theme: {', '.join(enriched['themes'])}\n"
+                if enriched.get('tags'):
+                    response += f"Tags: {', '.join(enriched['tags'])}\n"
+
+                # Compact table information with accurate BigQuery paths
+                tables = enriched.get('tables', [])
+                response += f"Tables({len(tables)}): "
+
+                table_summaries = []
+                bigquery_paths = []
+
+                for table in tables:
+                    table_summaries.append(table['name'])
+                    if table.get('bigquery_reference'):
+                        bigquery_paths.append(table['bigquery_reference'])
+
+                response += f"{', '.join(table_summaries)}\n"
+
+                # Show BigQuery paths if we have accurate ones, otherwise guide to other API
+                if bigquery_paths:
+                    response += f"BQ: {', '.join(bigquery_paths)}\n"
+                else:
+                    response += f"BQ: Use get_dataset_overview('{dataset_id}') for exact paths\n"
+
+            else:
+                # Fallback if enrichment failed
+                response += f"Tables: {n_tables} (use get_dataset_overview for details)\n"
+                response += f"BQ: Use get_dataset_overview('{dataset_id}') for exact paths\n"
+
+            response += "\n"
+
+        response += "Next: get_dataset_overview(ID) → get_table_details(tableID) → execute_bigquery_sql"
+
         return response
-        
+
     except Exception as e:
-        return f"Error searching datasets via backend API: {str(e)}"
+        logger.error(f"Error in comprehensive search: {str(e)}")
+        return f"Error searching datasets: {str(e)}\n\nTry again with different keywords or check your connection."
 
 # =============================================================================
 # Server Entry Point

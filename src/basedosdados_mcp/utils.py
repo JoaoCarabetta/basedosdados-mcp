@@ -28,32 +28,42 @@ def clean_graphql_id(graphql_id: Optional[str]) -> str:
     return graphql_id
 
 
-def format_bigquery_reference(dataset_slug: str, table_slug: str) -> str:
+def format_bigquery_reference(dataset_slug: str, table_slug: str, organization_slug: str = None) -> str:
     """
     Format a BigQuery table reference with consistent formatting.
     
+    Base dos Dados uses the pattern: basedosdados.{country}_{organization}_{dataset}.{table}
+    
     Args:
-        dataset_slug: Dataset slug (e.g., 'br_abrinq_oca')
-        table_slug: Table slug (e.g., 'municipio_primeira_infancia')
+        dataset_slug: Dataset slug (e.g., 'populacao')
+        table_slug: Table slug (e.g., 'brasil')
+        organization_slug: Organization slug (e.g., 'ibge')
         
     Returns:
-        Formatted BigQuery reference (e.g., 'basedosdados.br_abrinq_oca.municipio_primeira_infancia')
+        Formatted BigQuery reference (e.g., 'basedosdados.br_ibge_populacao.brasil')
     """
-    return f"basedosdados.{dataset_slug}.{table_slug}"
+    if organization_slug:
+        # Use the correct pattern: br_{organization}_{dataset}
+        bigquery_dataset_id = f"br_{organization_slug}_{dataset_slug}"
+        return f"basedosdados.{bigquery_dataset_id}.{table_slug}"
+    else:
+        # Fallback to old pattern if organization not available
+        return f"basedosdados.{dataset_slug}.{table_slug}"
 
 
-def format_bigquery_reference_with_highlighting(dataset_slug: str, table_slug: str) -> str:
+def format_bigquery_reference_with_highlighting(dataset_slug: str, table_slug: str, organization_slug: str = None) -> str:
     """
     Format a BigQuery table reference with enhanced highlighting for display.
     
     Args:
-        dataset_slug: Dataset slug (e.g., 'br_abrinq_oca')
-        table_slug: Table slug (e.g., 'municipio_primeira_infancia')
+        dataset_slug: Dataset slug (e.g., 'populacao')
+        table_slug: Table slug (e.g., 'brasil')
+        organization_slug: Organization slug (e.g., 'ibge')
         
     Returns:
-        Formatted BigQuery reference with highlighting (e.g., '`basedosdados.br_abrinq_oca.municipio_primeira_infancia`')
+        Formatted BigQuery reference with highlighting (e.g., '`basedosdados.br_ibge_populacao.brasil`')
     """
-    ref = format_bigquery_reference(dataset_slug, table_slug)
+    ref = format_bigquery_reference(dataset_slug, table_slug, organization_slug)
     return f"`{ref}`"
 
 

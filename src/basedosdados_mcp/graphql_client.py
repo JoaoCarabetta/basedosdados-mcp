@@ -94,6 +94,7 @@ query GetDatasetOverview($id: ID!) {
                     edges {
                         node {
                             name
+                            slug
                         }
                     }
                 }
@@ -153,6 +154,14 @@ query GetTableDetails($id: ID!) {
                     id
                     name
                     slug
+                    organizations {
+                        edges {
+                            node {
+                                name
+                                slug
+                            }
+                        }
+                    }
                 }
                 columns {
                     edges {
@@ -275,6 +284,105 @@ query ComprehensiveSearchDatasets($query: String, $first: Int) {
                                     }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+# Enhanced search enrichment query for comprehensive dataset details
+SEARCH_ENRICHMENT_QUERY = """
+query SearchEnrichmentDatasets($ids: [ID!]!) {
+    allDataset(id_In: $ids) {
+        edges {
+            node {
+                id
+                name
+                slug
+                description
+                organizations {
+                    edges {
+                        node {
+                            id
+                            name
+                            slug
+                        }
+                    }
+                }
+                themes {
+                    edges {
+                        node {
+                            id
+                            name
+                            slug
+                        }
+                    }
+                }
+                tags {
+                    edges {
+                        node {
+                            id
+                            name
+                            slug
+                        }
+                    }
+                }
+                tables {
+                    edges {
+                        node {
+                            id
+                            name
+                            slug
+                            description
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+# High-performance search enrichment query (minimal data for speed)
+FAST_SEARCH_ENRICHMENT_QUERY = """
+query FastSearchEnrichmentDatasets($ids: [ID!]!) {
+    allDataset(id_In: $ids) {
+        edges {
+            node {
+                id
+                name
+                slug
+                description
+                organizations {
+                    edges {
+                        node {
+                            name
+                            slug
+                        }
+                    }
+                }
+                themes {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tags {
+                    edges {
+                        node {
+                            name
+                        }
+                    }
+                }
+                tables {
+                    edges {
+                        node {
+                            name
+                            slug
                         }
                     }
                 }
