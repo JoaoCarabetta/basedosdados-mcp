@@ -8,6 +8,7 @@ against Base dos Dados datasets in Google BigQuery.
 import os
 import logging
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from google.cloud import bigquery
@@ -15,6 +16,64 @@ from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# UTF-8 Encoding Configuration
+# =============================================================================
+
+# Ensure proper UTF-8 encoding for all output
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+os.environ.setdefault('LC_ALL', 'en_US.UTF-8')
+os.environ.setdefault('LANG', 'en_US.UTF-8')
+
+def ensure_utf8_response(response: str) -> str:
+    """
+    Ensure the response is properly UTF-8 encoded and convert Unicode escape sequences.
+    
+    Args:
+        response: The response string to encode
+        
+    Returns:
+        Properly encoded UTF-8 string with Unicode characters
+    """
+    if isinstance(response, bytes):
+        response = response.decode('utf-8')
+    elif not isinstance(response, str):
+        response = str(response)
+    
+    # Handle Unicode escape sequences (e.g., \u00e7 -> ç)
+    try:
+        # First, try to decode any Unicode escape sequences
+        import codecs
+        response = codecs.decode(response, 'unicode_escape')
+    except (UnicodeDecodeError, ValueError):
+        # If that fails, try a more robust approach
+        import re
+        
+        def replace_unicode_escapes(match):
+            try:
+                return chr(int(match.group(1), 16))
+            except (ValueError, OverflowError):
+                return match.group(0)
+        
+        # Replace \uXXXX patterns with actual Unicode characters
+        response = re.sub(r'\\u([0-9a-fA-F]{4})', replace_unicode_escapes, response)
+        
+        # Also handle \xXX patterns
+        def replace_hex_escapes(match):
+            try:
+                return chr(int(match.group(1), 16))
+            except (ValueError, OverflowError):
+                return match.group(0)
+        
+        response = re.sub(r'\\x([0-9a-fA-F]{2})', replace_hex_escapes, response)
+    
+    # Ensure final encoding is UTF-8
+    try:
+        return response.encode('utf-8').decode('utf-8')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # Fallback: try to encode as UTF-8, ignoring errors
+        return response.encode('utf-8', errors='ignore').decode('utf-8')
 
 # =============================================================================
 # BigQuery Client Configuration
@@ -349,7 +408,7 @@ def format_query_results(results: Dict[str, Any]) -> str:
     """
     if not results.get("success", False):
         error_msg = results.get("error", "Unknown error")
-        return f"❌ **Query Failed:** {error_msg}"
+        return ensure_utf8_response(f"❌ **Query Failed:** {error_msg}")
     
     # Extract data
     data = results.get("results", [])
@@ -375,4 +434,4 @@ def format_query_results(results: Dict[str, Any]) -> str:
     else:
         response += "** No data returned**\n"
     
-    return response
+    return ensure_utf8_response(response)

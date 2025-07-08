@@ -122,11 +122,102 @@ from basedosdados_mcp.utils import (
 logger = logging.getLogger(__name__)
 
 # =============================================================================
+# UTF-8 Encoding Configuration
+# =============================================================================
+
+# Ensure proper UTF-8 encoding for all output
+# Set environment variables for UTF-8 encoding
+os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+os.environ.setdefault('LC_ALL', 'en_US.UTF-8')
+os.environ.setdefault('LANG', 'en_US.UTF-8')
+
+# Force UTF-8 encoding for stdout and stderr
+if hasattr(sys.stdout, 'buffer'):
+    sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1)
+if hasattr(sys.stderr, 'buffer'):
+    sys.stderr = open(sys.stderr.fileno(), mode='w', encoding='utf-8', buffering=1)
+
+# =============================================================================
 # FastMCP Server Initialization
 # =============================================================================
 
-# Initialize the FastMCP server
+# Initialize the FastMCP server with UTF-8 encoding
 mcp = FastMCP("Base dos Dados MCP")
+
+# =============================================================================
+# Response Encoding Helper
+# =============================================================================
+
+def ensure_utf8_response(response: str) -> str:
+    """
+    Ensure the response is properly UTF-8 encoded and convert Unicode escape sequences.
+    
+    Args:
+        response: The response string to encode
+        
+    Returns:
+        Properly encoded UTF-8 string with Unicode characters
+    """
+    if isinstance(response, bytes):
+        response = response.decode('utf-8')
+    elif not isinstance(response, str):
+        response = str(response)
+    
+    # Handle Unicode escape sequences (e.g., \u00e7 -> ç)
+    try:
+        # First, try to decode any Unicode escape sequences
+        import codecs
+        response = codecs.decode(response, 'unicode_escape')
+    except (UnicodeDecodeError, ValueError):
+        # If that fails, try a more robust approach
+        import re
+        
+        def replace_unicode_escapes(match):
+            try:
+                return chr(int(match.group(1), 16))
+            except (ValueError, OverflowError):
+                return match.group(0)
+        
+        # Replace \uXXXX patterns with actual Unicode characters
+        response = re.sub(r'\\u([0-9a-fA-F]{4})', replace_unicode_escapes, response)
+        
+        # Also handle \xXX patterns
+        def replace_hex_escapes(match):
+            try:
+                return chr(int(match.group(1), 16))
+            except (ValueError, OverflowError):
+                return match.group(0)
+        
+        response = re.sub(r'\\x([0-9a-fA-F]{2})', replace_hex_escapes, response)
+    
+    # Ensure final encoding is UTF-8
+    try:
+        return response.encode('utf-8').decode('utf-8')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # Fallback: try to encode as UTF-8, ignoring errors
+        return response.encode('utf-8', errors='ignore').decode('utf-8')
+
+def clean_api_data(data: dict) -> dict:
+    """
+    Clean API response data to handle Unicode escape sequences in nested structures.
+    
+    Args:
+        data: Dictionary containing API response data
+        
+    Returns:
+        Cleaned dictionary with proper Unicode characters
+    """
+    if isinstance(data, dict):
+        cleaned = {}
+        for key, value in data.items():
+            cleaned[key] = clean_api_data(value)
+        return cleaned
+    elif isinstance(data, list):
+        return [clean_api_data(item) for item in data]
+    elif isinstance(data, str):
+        return ensure_utf8_response(data)
+    else:
+        return data
 
 # =============================================================================
 # Backend Search API Integration
@@ -191,18 +282,14 @@ async def search_datasets(
         logger.info("Attempting backend API search...")
         response = await search_datasets_backend(query, limit, fast_mode)
         logger.info("Backend API search completed")
-        return response
+        return ensure_utf8_response(response)
     except Exception as e:
         logger.error(f"Backend API search failed: {str(e)}")
-        return f"Search failed for query '{query}'. Please try again later."
+        return ensure_utf8_response(f"Search failed for query '{query}'. Please try again later.")
 
 # =============================================================================
 # Internal Search Functions (not exposed as tools)
 # =============================================================================
-
-
-
-
 
 @mcp.tool()
 @utf8_tool
@@ -356,13 +443,12 @@ async def get_dataset_overview(dataset_id: str, fast_mode: bool = True) -> str:
 
                 return response
             else:
-                return "Dataset not found"
+                return ensure_utf8_response("Dataset not found")
         else:
             return "Dataset not found"
 
     except Exception as e:
-        return f"Error getting dataset overview: {str(e)}"
-
+        return ensure_utf8_response(f"Error getting dataset overview: {str(e)}")
 
 @mcp.tool()
 @utf8_tool
@@ -502,13 +588,12 @@ async def get_table_details(table_id: str, fast_mode: bool = True) -> str:
 
                 return response
             else:
-                return "Table not found"
+                return ensure_utf8_response("Table not found")
         else:
             return "Table not found"
 
     except Exception as e:
-        return f"Error getting table details: {str(e)}"
-
+        return ensure_utf8_response(f"Error getting table details: {str(e)}")
 
 @mcp.tool()
 @utf8_tool
@@ -581,11 +666,10 @@ async def execute_bigquery_sql(
     """
     is_valid, error = validate_query(query)
     if not is_valid:
-        return f"❌ Query rejected: {error}"
+        return ensure_utf8_response(f"❌ Query rejected: {error}")
 
     results = await execute_query(query, max_results=max_results, timeout_seconds=timeout_seconds)
-    return format_query_results(results)
-
+    return ensure_utf8_response(format_query_results(results))
 
 @mcp.tool()
 @utf8_tool
