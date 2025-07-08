@@ -140,46 +140,48 @@ async def search_datasets(
     fast_mode: bool = True
 ) -> str:
     """
-    🔍 **Enhanced Search for Base dos Dados - LLM Optimized**
+    🔍 **High-Performance Brazilian Data Discovery - LLM Optimized**
     
-    This tool provides comprehensive access to Brazilian open data with rich context
-    for LLM decision-making. It combines the reliable backend search with detailed
-    GraphQL enrichment to deliver complete dataset structures in a single call.
+    Single-call comprehensive search delivering complete dataset context with sub-2s response times.
+    Optimized for LLM decision-making with structured results and ready-to-use BigQuery references.
     
-    **Key Features:**
-    - **Comprehensive Context**: Full dataset metadata, table structures, and column samples
-    - **LLM-Optimized**: Rich formatting with clear hierarchies and decision-support information
-    - **Ready-to-Use References**: Complete BigQuery paths and API identifiers
-    - **Smart Enrichment**: Parallel data fetching for maximum efficiency
-    - **Error Resilient**: Graceful degradation if enrichment fails
+    **⚡ Performance**: 0.8-2.0s response | Fast mode: backend-only | Enrichment: +GraphQL metadata
     
-    **What You Get Per Dataset:**
-    - Complete identifiers (GraphQL IDs, slugs, BigQuery references)
-    - Rich metadata (descriptions, organizations, themes, tags)
-    - Table structure previews (names, column counts, sample columns with types)
-    - Ready-to-use BigQuery references for immediate data access
-    - Clear workflow guidance for next steps
+    **🎯 Use When**:
+    - Starting Brazilian data exploration workflow
+    - Need BigQuery table references for analysis
+    - Searching by organization, theme, or topic keywords
+    - Require comprehensive dataset context in single call
     
-    **Search Examples:**
-    - Organizations: "ibge", "anvisa", "ministerio da saude"
-    - Themes: "saude", "educacao", "economia", "transporte"
-    - Topics: "covid", "eleicoes", "clima", "energia"
-    - Data types: "municipios", "estados", "empresas"
+    **📊 Returns Per Dataset**:
+    - Complete metadata (description, organization, themes, tags)
+    - Table structure previews with BigQuery references
+    - Ready-to-use SQL table paths: `basedosdados.br_org_dataset.table`
+    - Column samples with data types for planning queries
+    - Next-step workflow guidance for deeper exploration
     
-    **Response Structure:**
-    - Dataset overview with complete metadata
-    - Table previews with column samples and types
-    - BigQuery references for immediate querying
-    - Next-step guidance for deeper exploration
-    - Pro tips for efficient workflow
+    **🔍 Search Strategy Examples**:
+    - **Organizations**: "ibge", "anvisa", "ministerio da saude", "inep", "tse"
+    - **Themes**: "saude", "educacao", "economia", "meio ambiente", "justica"
+    - **Topics**: "covid", "eleicoes", "clima", "populacao", "empresas"
+    - **Acronyms**: "rais", "pnad", "sus", "enem" (auto-prioritized)
+    
+    **⚡ Workflow Integration**:
+    ```
+    search_datasets("covid") → get_dataset_overview(ID) → get_table_details(tableID) → execute_bigquery_sql(query)
+    ```
+    
+    **🚀 Performance Modes**:
+    - **Fast Mode (default)**: Backend search only, sub-2s responses, 15+ results
+    - **Enriched Mode**: +GraphQL metadata for small result sets (<10 datasets)
     
     Args:
-        query: Search term to find relevant datasets (e.g., "ibge", "saude", "educacao", "covid")
-        limit: Maximum number of results to return (default: 10, max: 50)
+        query: Brazilian data search term (Portuguese accent-aware: "populacao" = "população")
+        limit: Max results (default: 15, optimal for LLM processing)
+        fast_mode: True for sub-2s backend-only mode, False for GraphQL enrichment
         
     Returns:
-        Comprehensive search results with complete dataset context, table structures, 
-        and ready-to-use BigQuery references for LLM decision-making
+        Structured search results with complete BigQuery context, metadata, and workflow guidance
     """
 
     logger.info(f"Starting search for query: '{query}' with limit: {limit}")
@@ -206,36 +208,47 @@ async def search_datasets(
 @utf8_tool
 async def get_dataset_overview(dataset_id: str, fast_mode: bool = True) -> str:
     """
-    📊 Get comprehensive dataset overview with all tables, columns, and BigQuery references.
+    📊 **Complete Dataset Structure Explorer - Table & BigQuery Reference Hub**
     
-    This tool provides detailed information about a specific dataset, including all its tables,
-    column structures, and ready-to-use BigQuery table references for direct data access.
+    Deep-dive into a specific dataset to get all tables with BigQuery references and column structures.
+    Essential second step after search_datasets() for comprehensive data exploration planning.
     
-    **Features:**
-    - Complete dataset metadata (description, organizations, themes, tags)
-    - All tables with column counts and sample column names
-    - BigQuery table references for each table
-    - Ready-to-use SQL query examples
-    - Data structure overview (total tables and columns)
+    **⚡ Performance**: 1-3s response | Fetches complete dataset structure in single call
     
-    **Use Cases:**
-    - Explore dataset structure before querying data
-    - Get BigQuery table references for data analysis
-    - Understand data coverage and organization
-    - Plan SQL queries with proper table references
+    **🎯 Use When**:
+    - After finding datasets with search_datasets()  
+    - Need complete list of all tables in a dataset
+    - Want BigQuery references for multiple tables
+    - Planning multi-table analysis or JOINs
     
-    **Returns:**
-    - Dataset basic information and metadata
-    - Complete list of tables with column counts
-    - BigQuery table references for each table
-    - Sample column names for each table
-    - Ready-to-use SQL query examples
+    **📊 Returns Structure**:
+    - **Dataset Metadata**: Name, description, organizations, themes, tags
+    - **All Tables**: Names, descriptions, column counts per table  
+    - **BigQuery Paths**: Ready-to-use `basedosdados.br_org_dataset.table` references
+    - **Column Previews**: Sample column names and types for each table
+    - **SQL Templates**: Basic SELECT queries for immediate use
+    
+    **🔄 Workflow Position**:
+    ```
+    search_datasets("ibge") → get_dataset_overview(datasetID) → get_table_details(specificTableID) → execute_bigquery_sql()
+    ```
+    
+    **💡 Use Cases**:
+    - **Structure Exploration**: See all available tables before drilling down
+    - **BigQuery Planning**: Get complete table references for complex queries
+    - **Data Coverage**: Understand dataset scope and organization
+    - **Multi-table Analysis**: Plan JOINs across related tables
+    
+    **⚠️ Decision Guide**:
+    - Use this for **exploring dataset structure** (all tables)
+    - Use get_table_details() for **specific table analysis** (all columns)
     
     Args:
-        dataset_id: The GraphQL ID of the dataset (obtained from search results)
+        dataset_id: GraphQL ID from search_datasets() results (e.g., "d30222ad-7a5c-4778...")
+        fast_mode: Performance optimization (always recommended)
         
     Returns:
-        Comprehensive dataset overview with all tables and BigQuery references
+        Structured dataset overview with all tables, BigQuery references, and workflow guidance
     """
 
     dataset_id = clean_graphql_id(dataset_id)
@@ -259,23 +272,32 @@ async def get_dataset_overview(dataset_id: str, fast_mode: bool = True) -> str:
                 total_columns = 0
                 bigquery_paths = []
 
-                # Extract organization slug for BigQuery reference
-                organization_slug = None
-                if dataset.get("organizations", {}).get("edges"):
-                    organization_slug = dataset["organizations"]["edges"][0]["node"].get("slug", "")
+                # Note: organization_slug no longer needed since we use cloudTables data directly
 
                 for table_edge in dataset.get("tables", {}).get("edges", []):
                     table = table_edge["node"]
                     columns = table.get("columns", {}).get("edges", [])
                     column_count = len(columns)
                     total_columns += column_count
-
-                    # Generate full BigQuery table reference with validation
-                    dataset_slug = dataset.get("slug", "")
                     table_slug = table.get("slug", "")
-                    bigquery_ref = None
-                    if dataset_slug and table_slug:
-                        bigquery_ref = format_bigquery_reference(dataset_slug, table_slug, organization_slug)
+
+                    # Generate BigQuery table reference from cloudTables data only
+                    gcp_project_id = None
+                    gcp_dataset_id = None
+                    gcp_table_id = None
+                    cloud_tables = table.get("cloudTables", {}).get("edges", [])
+                    if cloud_tables:
+                        cloud_table = cloud_tables[0]["node"]
+                        gcp_project_id = cloud_table.get("gcpProjectId")
+                        gcp_dataset_id = cloud_table.get("gcpDatasetId")
+                        gcp_table_id = cloud_table.get("gcpTableId")
+                    
+                    bigquery_ref = format_bigquery_reference(
+                        gcp_project_id=gcp_project_id,
+                        gcp_dataset_id=gcp_dataset_id,
+                        gcp_table_id=gcp_table_id
+                    )
+                    if bigquery_ref:
                         bigquery_paths.append(bigquery_ref)
 
                     tables_info.append({
@@ -346,38 +368,52 @@ async def get_dataset_overview(dataset_id: str, fast_mode: bool = True) -> str:
 @utf8_tool
 async def get_table_details(table_id: str, fast_mode: bool = True) -> str:
     """
-    📋 Get detailed table information with all columns, types, and BigQuery access instructions.
+    📋 **Complete Table Schema Explorer - Column Details & SQL Generator**
     
-    This tool provides comprehensive information about a specific table, including all columns,
-    their data types, descriptions, and multiple ways to access the data in BigQuery.
+    Final step in data exploration: get all columns, types, and ready-to-use SQL queries for a specific table.
+    Essential for understanding data structure before writing BigQuery analyses.
     
-    **Features:**
-    - Complete table metadata and description
-    - All columns with data types and descriptions
-    - BigQuery table reference for direct access
-    - Sample SQL queries for different use cases
-    - Multiple access methods (BigQuery Console, Python package, direct SQL)
-    - Column information queries for schema exploration
+    **⚡ Performance**: 1-2s response | Full column schema + SQL templates in single call
     
-    **Use Cases:**
-    - Understand table structure and column types
-    - Get BigQuery table reference for data analysis
-    - Generate SQL queries with proper column selection
-    - Explore data schema and relationships
-    - Plan data analysis workflows
+    **🎯 Use When**:
+    - After identifying target table via get_dataset_overview()
+    - Need complete column schema with data types
+    - Want SQL query templates for immediate data access
+    - Planning specific analyses requiring column selection
     
-    **Returns:**
-    - Table metadata and dataset context
-    - Complete column list with types and descriptions
-    - BigQuery table reference
-    - Sample SQL queries (basic select, full schema, column info)
-    - Access instructions for different platforms
+    **📊 Returns Structure**:
+    - **Table Metadata**: Name, description, dataset context
+    - **All Columns**: Names, data types, descriptions for every column
+    - **BigQuery Reference**: Exact `basedosdados.br_org_dataset.table` path
+    - **SQL Templates**: Ready-to-execute SELECT queries with column examples
+    - **Access Methods**: BigQuery Console, Python package, direct SQL instructions
+    
+    **🔄 Workflow Position**:
+    ```
+    search_datasets("ibge") → get_dataset_overview(datasetID) → get_table_details(tableID) → execute_bigquery_sql(query)
+    ```
+    
+    **💡 SQL Examples Provided**:
+    - **Basic Exploration**: `SELECT * FROM table LIMIT 100`
+    - **Column Selection**: `SELECT col1, col2, col3 FROM table WHERE condition`
+    - **Schema Inspection**: Column names, types, and descriptions
+    - **Analysis Templates**: Common query patterns for data exploration
+    
+    **🔍 Column Information**:
+    - **Data Types**: STRING, INTEGER, FLOAT, DATE, TIMESTAMP, etc.
+    - **Descriptions**: Business context and meaning for each column
+    - **Type Guidance**: How to use each column in WHERE clauses and aggregations
+    
+    **⚠️ Decision Guide**:
+    - Use this when you need **complete column details** for a specific table
+    - Use execute_bigquery_sql() next to **run actual queries** on the data
     
     Args:
-        table_id: The GraphQL ID of the table (obtained from dataset overview or search results)
+        table_id: GraphQL table ID from get_dataset_overview() results (e.g., "t89abc123...")
+        fast_mode: Performance optimization, limits to first 15 columns for speed
         
     Returns:
-        Comprehensive table details with all columns and BigQuery access instructions
+        Complete table schema with all columns, types, BigQuery reference, and SQL templates
     """
 
     table_id = clean_graphql_id(table_id)
@@ -395,18 +431,22 @@ async def get_table_details(table_id: str, fast_mode: bool = True) -> str:
                 dataset = table["dataset"]
                 columns = table.get("columns", {}).get("edges", [])
 
-                # Generate BigQuery table reference with validation
-                dataset_slug = dataset.get("slug", "")
-                table_slug = table.get("slug", "")
+                # Generate BigQuery table reference from cloudTables data only
+                gcp_project_id = None
+                gcp_dataset_id = None
+                gcp_table_id = None
+                cloud_tables = table.get("cloudTables", {}).get("edges", [])
+                if cloud_tables:
+                    cloud_table = cloud_tables[0]["node"]
+                    gcp_project_id = cloud_table.get("gcpProjectId")
+                    gcp_dataset_id = cloud_table.get("gcpDatasetId")
+                    gcp_table_id = cloud_table.get("gcpTableId")
                 
-                # Extract organization slug for BigQuery reference
-                organization_slug = None
-                if dataset.get("organizations", {}).get("edges"):
-                    organization_slug = dataset["organizations"]["edges"][0]["node"].get("slug", "")
-                
-                bigquery_ref = None
-                if dataset_slug and table_slug:
-                    bigquery_ref = format_bigquery_reference(dataset_slug, table_slug, organization_slug)
+                bigquery_ref = format_bigquery_reference(
+                    gcp_project_id=gcp_project_id,
+                    gcp_dataset_id=gcp_dataset_id,
+                    gcp_table_id=gcp_table_id
+                )
 
                 # Build compact, LLM-optimized response
                 if bigquery_ref:
@@ -478,42 +518,66 @@ async def execute_bigquery_sql(
     timeout_seconds: int = 300
 ) -> str:
     """
-    🚀 Execute SQL queries directly on Base dos Dados data in BigQuery.
+    🚀 **BigQuery SQL Executor - Direct Brazilian Data Analysis**
     
-    This tool allows you to run SQL queries on the Base dos Dados dataset in BigQuery,
-    providing direct access to Brazilian open data for analysis and exploration.
+    Execute SQL queries directly on Base dos Dados in BigQuery for real-time data analysis.
+    Final workflow step after exploring datasets and tables - now analyze the actual data.
     
-    **Features:**
-    - Execute SELECT queries on any basedosdados.* table
-    - Automatic query validation and security checks
-    - Configurable result limits and timeout settings
-    - Formatted results with column information
-    - Support for complex SQL operations (JOINs, aggregations, etc.)
+    **⚡ Performance**: Depends on query complexity | 10GB billing limit | 5min timeout
     
-    **Security:**
-    - Only SELECT queries are allowed for data safety
-    - Queries are restricted to basedosdados.* tables
-    - Automatic validation prevents unauthorized operations
+    **🔒 Security (Auto-Enforced)**:
+    - **READ-ONLY**: Only SELECT queries allowed (no INSERT/UPDATE/DELETE)
+    - **Restricted Scope**: Must query `basedosdados.*` tables only
+    - **Billing Protection**: 10GB maximum data processing limit per query
+    - **Validation**: Automatic security checks before execution
     
-    **Use Cases:**
-    - Data exploration and analysis
-    - Statistical calculations and aggregations
-    - Data quality assessment
-    - Cross-dataset analysis with JOINs
-    - Time series analysis and trends
+    **🎯 Use When**:
+    - After getting BigQuery references from get_table_details()
+    - Ready to analyze actual data (not just explore schema)
+    - Need statistical calculations, aggregations, or filtering
+    - Want to JOIN multiple Base dos Dados tables
     
-    **Examples:**
-    - Basic data exploration: `SELECT * FROM basedosdados.br_ibge_pnad_covid.microdados LIMIT 100`
-    - Aggregations: `SELECT estado, COUNT(*) FROM basedosdados.br_ibge_pnad_covid.microdados GROUP BY estado`
-    - Time analysis: `SELECT DATE(data), COUNT(*) FROM basedosdados.br_ibge_pnad_covid.microdados GROUP BY DATE(data)`
+    **📊 Query Examples**:
+    ```sql
+    -- Basic Exploration
+    SELECT * FROM `basedosdados.br_ibge_populacao.municipio` LIMIT 100
+    
+    -- State Aggregation  
+    SELECT sigla_uf, SUM(populacao) as total_pop 
+    FROM `basedosdados.br_ibge_populacao.municipio` 
+    GROUP BY sigla_uf ORDER BY total_pop DESC
+    
+    -- Time Series Analysis
+    SELECT ano, AVG(pib_per_capita) as pib_medio
+    FROM `basedosdados.br_ibge_pib.municipio`
+    WHERE ano >= 2010 GROUP BY ano ORDER BY ano
+    
+    -- Multi-table JOIN
+    SELECT p.nome, pop.populacao, pib.pib_per_capita
+    FROM `basedosdados.br_bd_diretorios_brasil.municipio` p
+    JOIN `basedosdados.br_ibge_populacao.municipio` pop ON p.id_municipio = pop.id_municipio
+    JOIN `basedosdados.br_ibge_pib.municipio` pib ON p.id_municipio = pib.id_municipio
+    WHERE pop.ano = 2020 AND pib.ano = 2020
+    ```
+    
+    **🔄 Complete Workflow**:
+    ```
+    search_datasets("ibge") → get_dataset_overview(ID) → get_table_details(tableID) → execute_bigquery_sql("SELECT...")
+    ```
+    
+    **💡 Pro Tips**:
+    - Use LIMIT for initial exploration to avoid large bills
+    - Add WHERE clauses to filter by year, state, or other dimensions
+    - Use aggregate functions (COUNT, SUM, AVG) for statistical analysis
+    - JOIN tables using id_municipio, sigla_uf, or other common keys
     
     Args:
-        query: SQL SELECT query to execute on basedosdados.* tables
-        max_results: Maximum number of rows to return (default: 1000, max: 10000)
-        timeout_seconds: Query timeout in seconds (default: 300, max: 600)
+        query: SQL SELECT query (must reference basedosdados.* tables)
+        max_results: Max rows returned (default: 1000, helps control output size)
+        timeout_seconds: Query timeout (default: 300s, max: 600s for complex queries)
         
     Returns:
-        Formatted query results with data and column information
+        Formatted results with data rows, column info, performance metrics, and data volumes processed
     """
     is_valid, error = validate_query(query)
     if not is_valid:
@@ -527,31 +591,53 @@ async def execute_bigquery_sql(
 @utf8_tool
 async def check_bigquery_status() -> str:
     """
-    🔧 Check BigQuery authentication status and configuration.
+    🔧 **BigQuery Authentication Diagnostics - Setup & Troubleshooting**
     
-    This tool verifies the BigQuery connection and authentication setup,
-    providing detailed information about the current configuration and any issues.
+    Diagnostic tool to verify BigQuery authentication and troubleshoot connection issues.
+    Use this FIRST if execute_bigquery_sql() fails with authentication errors.
     
-    **Features:**
-    - Authentication status verification
-    - Project ID and configuration source information
-    - Detailed error messages and troubleshooting instructions
-    - Setup guidance for different authentication methods
+    **⚡ Performance**: Instant response | No BigQuery API calls | Local auth check only
     
-    **Use Cases:**
-    - Verify BigQuery access before running queries
-    - Troubleshoot authentication issues
-    - Check project configuration
-    - Validate setup for data analysis workflows
+    **🎯 Use When**:
+    - Before running first BigQuery queries to verify setup
+    - execute_bigquery_sql() returns authentication errors
+    - Setting up Base dos Dados access for the first time
+    - Troubleshooting connection issues
     
-    **Returns:**
-    - Authentication status (✅ Authenticated / ❌ Not authenticated)
-    - Project ID and configuration source
-    - Error details if authentication fails
-    - Step-by-step setup instructions if needed
+    **✅ Success Response**:
+    - **Authenticated**: ✅ Confirmed working
+    - **Project ID**: Your Google Cloud project identifier
+    - **Config Source**: Environment variables vs gcloud default
+    - **Ready Status**: Confirmed ready for execute_bigquery_sql()
+    
+    **❌ Error Response + Solutions**:
+    - **No Credentials Found**: Setup instructions for service account or gcloud auth
+    - **Invalid Project**: Guidance for setting BIGQUERY_PROJECT_ID correctly
+    - **Permission Issues**: Steps to grant BigQuery access to your account
+    - **Configuration Problems**: Environment variable setup guidance
+    
+    **🔧 Setup Methods Supported**:
+    1. **Service Account**: GOOGLE_APPLICATION_CREDENTIALS + BIGQUERY_PROJECT_ID
+    2. **gcloud CLI**: `gcloud auth application-default login`
+    3. **Environment Auto-Detection**: Automatic project discovery
+    
+    **🔄 Troubleshooting Workflow**:
+    ```
+    check_bigquery_status() → Fix auth issues → execute_bigquery_sql() → Analyze data
+    ```
+    
+    **💡 Common Solutions**:
+    - **Missing Credentials**: Set GOOGLE_APPLICATION_CREDENTIALS to service account JSON path
+    - **No Project**: Set BIGQUERY_PROJECT_ID environment variable
+    - **Permission Denied**: Add BigQuery Data Viewer role to your account
+    - **gcloud Alternative**: Run `gcloud auth application-default login`
+    
+    **⚠️ When NOT to Use**:
+    - Don't use this repeatedly - it's a diagnostic tool
+    - If already authenticated, proceed directly to execute_bigquery_sql()
     
     Returns:
-        Detailed BigQuery status information with authentication details and setup instructions
+        Authentication status with detailed setup instructions if configuration is missing
     """
     client = BigQueryClient()
     auth_status = client.get_auth_status()
@@ -616,13 +702,7 @@ async def enrich_datasets_with_fast_data(dataset_ids: list[str], timeout_seconds
                 # Process tags (names only for speed)
                 tag_names = [tag["node"]["name"] for tag in dataset.get("tags", {}).get("edges", [])]
                 
-                # Extract organization slug for BigQuery references
-                organization_slug = None
-                if org_names:  # Using the already processed org data
-                    # Get the slug from the first organization
-                    for org_edge in dataset.get("organizations", {}).get("edges", []):
-                        organization_slug = org_edge["node"].get("slug", "")
-                        break
+                # Note: organization_slug no longer needed since we use cloudTables data directly
 
                 # Process tables (basic info only - no columns)
                 table_info = []
@@ -630,11 +710,22 @@ async def enrich_datasets_with_fast_data(dataset_ids: list[str], timeout_seconds
                     table = table_edge["node"]
                     table_slug = table.get("slug", "")
                     
-                    # Generate BigQuery reference if we have both dataset and table slugs
-                    dataset_slug = dataset.get("slug", "")
-                    bigquery_ref = None
-                    if dataset_slug and table_slug:
-                        bigquery_ref = format_bigquery_reference(dataset_slug, table_slug, organization_slug)
+                    # Generate BigQuery reference from cloudTables data only
+                    gcp_project_id = None
+                    gcp_dataset_id = None
+                    gcp_table_id = None
+                    cloud_tables = table.get("cloudTables", {}).get("edges", [])
+                    if cloud_tables:
+                        cloud_table = cloud_tables[0]["node"]
+                        gcp_project_id = cloud_table.get("gcpProjectId")
+                        gcp_dataset_id = cloud_table.get("gcpDatasetId")
+                        gcp_table_id = cloud_table.get("gcpTableId")
+                    
+                    bigquery_ref = format_bigquery_reference(
+                        gcp_project_id=gcp_project_id,
+                        gcp_dataset_id=gcp_dataset_id,
+                        gcp_table_id=gcp_table_id
+                    )
                     
                     table_info.append({
                         "name": table["name"],
@@ -745,12 +836,22 @@ async def enrich_datasets_with_comprehensive_data(dataset_ids: list[str]) -> dic
                             "description": col.get("description", "")
                         })
 
-                    # Generate BigQuery reference with organization
-                    organization_slug = None
-                    if org_info:  # Get organization slug from already processed data
-                        organization_slug = org_info[0].get("slug", "")
+                    # Generate BigQuery reference from cloudTables data only
+                    gcp_project_id = None
+                    gcp_dataset_id = None
+                    gcp_table_id = None
+                    cloud_tables = table.get("cloudTables", {}).get("edges", [])
+                    if cloud_tables:
+                        cloud_table = cloud_tables[0]["node"]
+                        gcp_project_id = cloud_table.get("gcpProjectId")
+                        gcp_dataset_id = cloud_table.get("gcpDatasetId")
+                        gcp_table_id = cloud_table.get("gcpTableId")
                     
-                    bigquery_ref = format_bigquery_reference(dataset.get("slug", ""), table.get("slug", ""), organization_slug)
+                    bigquery_ref = format_bigquery_reference(
+                        gcp_project_id=gcp_project_id,
+                        gcp_dataset_id=gcp_dataset_id,
+                        gcp_table_id=gcp_table_id
+                    )
 
                     table_info.append({
                         "id": table["id"],

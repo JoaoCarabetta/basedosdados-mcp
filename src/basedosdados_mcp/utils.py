@@ -28,43 +28,54 @@ def clean_graphql_id(graphql_id: Optional[str]) -> str:
     return graphql_id
 
 
-def format_bigquery_reference(dataset_slug: str, table_slug: str, organization_slug: str = None) -> str:
+def format_bigquery_reference(
+    gcp_project_id: Optional[str] = None,
+    gcp_dataset_id: Optional[str] = None,
+    gcp_table_id: Optional[str] = None
+) -> Optional[str]:
     """
-    Format a BigQuery table reference with consistent formatting.
+    Format a BigQuery table reference using actual GCP IDs from cloudTables.
     
-    Base dos Dados uses the pattern: basedosdados.{country}_{organization}_{dataset}.{table}
+    Only uses authoritative GCP data - no fallback construction to avoid incorrect references.
     
     Args:
-        dataset_slug: Dataset slug (e.g., 'populacao')
-        table_slug: Table slug (e.g., 'brasil')
-        organization_slug: Organization slug (e.g., 'ibge')
+        gcp_project_id: Actual GCP project ID from cloudTables (e.g., 'basedosdados')
+        gcp_dataset_id: Actual GCP dataset ID from cloudTables (e.g., 'br_ms_populacao')
+        gcp_table_id: Actual GCP table ID from cloudTables (e.g., 'municipio')
         
     Returns:
-        Formatted BigQuery reference (e.g., 'basedosdados.br_ibge_populacao.brasil')
+        Formatted BigQuery reference (e.g., 'basedosdados.br_ms_populacao.municipio') or None if data unavailable
     """
-    if organization_slug:
-        # Use the correct pattern: br_{organization}_{dataset}
-        bigquery_dataset_id = f"br_{organization_slug}_{dataset_slug}"
-        return f"basedosdados.{bigquery_dataset_id}.{table_slug}"
-    else:
-        # Fallback to old pattern if organization not available
-        return f"basedosdados.{dataset_slug}.{table_slug}"
+    # Only use actual GCP IDs from cloudTables - no fallback to avoid wrong references
+    if gcp_project_id and gcp_dataset_id and gcp_table_id:
+        return f"{gcp_project_id}.{gcp_dataset_id}.{gcp_table_id}"
+    
+    # Return None if we don't have complete GCP data
+    return None
 
 
-def format_bigquery_reference_with_highlighting(dataset_slug: str, table_slug: str, organization_slug: str = None) -> str:
+def format_bigquery_reference_with_highlighting(
+    gcp_project_id: Optional[str] = None,
+    gcp_dataset_id: Optional[str] = None,
+    gcp_table_id: Optional[str] = None
+) -> Optional[str]:
     """
     Format a BigQuery table reference with enhanced highlighting for display.
     
     Args:
-        dataset_slug: Dataset slug (e.g., 'populacao')
-        table_slug: Table slug (e.g., 'brasil')
-        organization_slug: Organization slug (e.g., 'ibge')
+        gcp_project_id: Actual GCP project ID from cloudTables (e.g., 'basedosdados')
+        gcp_dataset_id: Actual GCP dataset ID from cloudTables (e.g., 'br_ms_populacao')
+        gcp_table_id: Actual GCP table ID from cloudTables (e.g., 'municipio')
         
     Returns:
-        Formatted BigQuery reference with highlighting (e.g., '`basedosdados.br_ibge_populacao.brasil`')
+        Formatted BigQuery reference with highlighting (e.g., '`basedosdados.br_ms_populacao.municipio`') or None if data unavailable
     """
-    ref = format_bigquery_reference(dataset_slug, table_slug, organization_slug)
-    return f"`{ref}`"
+    ref = format_bigquery_reference(
+        gcp_project_id=gcp_project_id,
+        gcp_dataset_id=gcp_dataset_id,
+        gcp_table_id=gcp_table_id
+    )
+    return f"`{ref}`" if ref else None
 
 
 def format_sql_query_with_reference(table_reference: str, columns: str = "*", limit: int = 100) -> str:

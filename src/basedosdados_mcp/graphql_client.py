@@ -119,6 +119,15 @@ query GetDatasetOverview($id: ID!) {
                             name
                             slug
                             description
+                            cloudTables {
+                                edges {
+                                    node {
+                                        gcpProjectId
+                                        gcpDatasetId
+                                        gcpTableId
+                                    }
+                                }
+                            }
                             columns {
                                 edges {
                                     node {
@@ -150,6 +159,15 @@ query GetTableDetails($id: ID!) {
                 name
                 slug
                 description
+                cloudTables {
+                    edges {
+                        node {
+                            gcpProjectId
+                            gcpDatasetId
+                            gcpTableId
+                        }
+                    }
+                }
                 dataset {
                     id
                     name
@@ -337,6 +355,15 @@ query SearchEnrichmentDatasets($ids: [ID!]!) {
                             name
                             slug
                             description
+                            cloudTables {
+                                edges {
+                                    node {
+                                        gcpProjectId
+                                        gcpDatasetId
+                                        gcpTableId
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -383,6 +410,15 @@ query FastSearchEnrichmentDatasets($ids: [ID!]!) {
                         node {
                             name
                             slug
+                            cloudTables {
+                                edges {
+                                    node {
+                                        gcpProjectId
+                                        gcpDatasetId
+                                        gcpTableId
+                                    }
+                                }
+                            }
                         }
                     }
                 }
